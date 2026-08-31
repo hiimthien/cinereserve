@@ -6,7 +6,7 @@
       <div class="flex items-center justify-between border-b border-white/10 pb-6">
         <button 
           @click="router.back()"
-          class="flex items-center gap-2 text-sm text-cinema-muted hover:text-white transition-colors"
+          class="flex items-center gap-2 text-sm text-cinema-muted hover:text-white transition-colors cursor-pointer"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -21,8 +21,13 @@
 
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        <!-- Left: Payment Method Picker & Form (7 Cols) -->
+        <!-- Left: Snacks + Payment Method Picker & Form (7 Cols) -->
         <div class="lg:col-span-7 space-y-6">
+          
+          <!-- 1. Bắp & Nước Addon -->
+          <SnackSelector @update:total="onSnackTotalUpdate" />
+
+          <!-- 2. Payment Method -->
           <div class="bg-cinema-surface/60 border border-cinema-border rounded-3xl p-6 backdrop-blur-md space-y-6">
             <h2 class="text-base font-bold text-white flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-cinema-accent"></span>
@@ -34,7 +39,7 @@
               <!-- Credit Card -->
               <button 
                 @click="paymentMethod = 'card'"
-                class="flex flex-col items-center justify-center p-4 rounded-2xl border transition-all text-center"
+                class="flex flex-col items-center justify-center p-4 rounded-2xl border transition-all text-center cursor-pointer"
                 :class="[
                   paymentMethod === 'card'
                     ? 'bg-cinema-accent/20 border-cinema-accent text-white shadow-glow-accent'
@@ -50,7 +55,7 @@
               <!-- MoMo -->
               <button 
                 @click="paymentMethod = 'momo'"
-                class="flex flex-col items-center justify-center p-4 rounded-2xl border transition-all text-center"
+                class="flex flex-col items-center justify-center p-4 rounded-2xl border transition-all text-center cursor-pointer"
                 :class="[
                   paymentMethod === 'momo'
                     ? 'bg-pink-600/20 border-pink-500 text-white shadow-glow-accent'
@@ -64,7 +69,7 @@
               <!-- VNPay -->
               <button 
                 @click="paymentMethod = 'vnpay'"
-                class="flex flex-col items-center justify-center p-4 rounded-2xl border transition-all text-center"
+                class="flex flex-col items-center justify-center p-4 rounded-2xl border transition-all text-center cursor-pointer"
                 :class="[
                   paymentMethod === 'vnpay'
                     ? 'bg-blue-600/20 border-blue-500 text-white shadow-glow-accent'
@@ -137,7 +142,7 @@
 
         <!-- Right: Order Summary (5 Cols) -->
         <div class="lg:col-span-5 space-y-6">
-          <div class="bg-cinema-surface/60 border border-cinema-border rounded-3xl p-6 backdrop-blur-md space-y-6">
+          <div class="bg-cinema-surface/60 border border-cinema-border rounded-3xl p-6 backdrop-blur-md space-y-6 sticky top-8">
             <h2 class="text-base font-bold text-white flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-cinema-gold"></span>
               Tóm tắt đơn hàng
@@ -151,7 +156,7 @@
               />
               <div class="space-y-1">
                 <h3 class="font-extrabold text-white text-base">{{ store.currentMovie?.title }}</h3>
-                <p class="text-xs text-cinema-muted">{{ store.selectedShowtime?.room?.name }} • {{ store.selectedShowtime?.start_time }}</p>
+                <p class="text-xs text-cinema-muted">{{ store.selectedShowtime?.room?.name || 'Hall 1 (IMAX)' }} • {{ store.selectedShowtime?.start_time || '18:30' }}</p>
                 <p class="text-xs text-amber-400 font-semibold">{{ store.selectedDate }}</p>
               </div>
             </div>
@@ -159,14 +164,18 @@
             <!-- Breakdown -->
             <div class="space-y-3 text-xs text-cinema-muted">
               <div class="flex justify-between">
-                <span>Số ghế đã chọn ({{ store.selectedSeats.length }}x):</span>
+                <span>Số ghế ({{ store.selectedSeats.length }}x):</span>
                 <span class="font-bold text-white">
                   {{ store.selectedSeats.map(s => s.row + s.number).join(', ') }}
                 </span>
               </div>
               <div class="flex justify-between">
-                <span>Giá vé tạm tính:</span>
-                <span class="text-white">${{ store.totalPrice }}.00</span>
+                <span>Tiền vé:</span>
+                <span class="text-white">${{ store.seatsPrice }}.00</span>
+              </div>
+              <div v-if="store.snackTotal > 0" class="flex justify-between text-amber-300">
+                <span>Combo Bắp & Nước:</span>
+                <span class="font-bold">+${{ store.snackTotal }}.00</span>
               </div>
               <div class="flex justify-between">
                 <span>Phí tiện ích (Convenience fee):</span>
@@ -176,7 +185,7 @@
 
             <!-- Total -->
             <div class="border-t border-white/10 pt-4 flex items-center justify-between">
-              <span class="text-sm font-semibold text-slate-300">Tổng cộng:</span>
+              <span class="text-sm font-semibold text-slate-300">Tổng thanh toán:</span>
               <span class="text-2xl font-black text-amber-400">${{ store.totalPrice }}.00</span>
             </div>
 
@@ -184,7 +193,7 @@
             <button 
               :disabled="isLoading"
               @click="handlePay"
-              class="w-full py-4 rounded-2xl bg-cinema-accent hover:bg-rose-600 text-white font-bold text-sm tracking-wide shadow-glow-accent transition-all duration-300 flex items-center justify-center gap-2 hover:scale-[1.02] disabled:opacity-50"
+              class="w-full py-4 rounded-2xl bg-cinema-accent hover:bg-rose-600 text-white font-bold text-sm tracking-wide shadow-glow-accent transition-all duration-300 flex items-center justify-center gap-2 hover:scale-[1.02] disabled:opacity-50 cursor-pointer"
             >
               <svg v-if="isLoading" class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -209,6 +218,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useBookingStore } from '../stores/bookingStore';
 import CountdownTimer from '../components/CountdownTimer.vue';
+import SnackSelector from '../components/SnackSelector.vue';
 
 const router = useRouter();
 const store = useBookingStore();
@@ -219,6 +229,10 @@ const cardNumber = ref('4242 •••• •••• 4242');
 const cardExpiry = ref('12/28');
 const cardCvv = ref('888');
 const isLoading = ref(false);
+
+const onSnackTotalUpdate = (total: number) => {
+  store.snackTotal = total;
+};
 
 const handlePay = async () => {
   isLoading.value = true;

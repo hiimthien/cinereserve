@@ -57,6 +57,7 @@ export interface Movie {
   description: string;
   director: string;
   cast: string[];
+  status?: 'now_showing' | 'coming_soon' | 'archived';
   showtimes?: Showtime[];
 }
 

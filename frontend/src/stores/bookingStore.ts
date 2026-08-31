@@ -8,12 +8,15 @@ export const useBookingStore = defineStore('booking', () => {
   // State
   const movies = ref<Movie[]>([]);
   const currentMovie = ref<Movie | null>(null);
-  const selectedDate = ref<string>('2026-08-31');
+  const selectedDate = ref<string>(new Date().toISOString().split('T')[0]);
   const selectedShowtime = ref<Showtime | null>(null);
   const seats = ref<Seat[]>([]);
   const selectedSeats = ref<Seat[]>([]);
+  const snackTotal = ref<number>(0);
   const currentBooking = ref<Booking | null>(null);
   const activeTicket = ref<Booking | null>(null);
+  const bookingHistory = ref<Booking[]>([]);
+  const isLoading = ref<boolean>(false);
   
   // Timer (10 minutes = 600s)
   const remainingSeconds = ref<number>(600);
@@ -27,8 +30,20 @@ export const useBookingStore = defineStore('booking', () => {
   localStorage.setItem('cinereserve_session', sessionId.value);
 
   // Computed
-  const totalPrice = computed(() => {
+  const seatsPrice = computed(() => {
     return selectedSeats.value.reduce((total, seat) => total + (seat.price || 12), 0);
+  });
+
+  const totalPrice = computed(() => {
+    return seatsPrice.value + snackTotal.value;
+  });
+
+  const nowShowingMovies = computed(() => {
+    return movies.value.filter(m => m.status === 'now_showing');
+  });
+
+  const comingSoonMovies = computed(() => {
+    return movies.value.filter(m => m.status === 'coming_soon');
   });
 
   const formattedRemainingTime = computed(() => {
@@ -42,20 +57,29 @@ export const useBookingStore = defineStore('booking', () => {
 
   // Actions
   const fetchMovies = async () => {
+    isLoading.value = true;
     try {
       const response = await api.get('/movies');
-      movies.value = response.data.data || response.data;
-      if (movies.value.length > 0 && !currentMovie.value) {
-        currentMovie.value = movies.value[0];
+      const data = response.data.data || response.data;
+      if (Array.isArray(data) && data.length > 0) {
+        movies.value = data;
+        if (!currentMovie.value) {
+          currentMovie.value = data[0];
+        }
       }
     } catch (error) {
-      console.warn('API error, using fallback mock data for Movie:', error);
-      mockDuneMovie();
+      console.warn('API error, using fallback catalog:', error);
+      mockCatalog();
+    } finally {
+      isLoading.value = false;
     }
   };
 
   const selectMovie = (movie: Movie) => {
     currentMovie.value = movie;
+    if (movie.showtimes && movie.showtimes.length > 0) {
+      selectedShowtime.value = movie.showtimes[0];
+    }
   };
 
   const selectDate = (date: string) => {
@@ -65,6 +89,7 @@ export const useBookingStore = defineStore('booking', () => {
   const selectShowtime = async (showtime: Showtime) => {
     selectedShowtime.value = showtime;
     selectedSeats.value = [];
+    snackTotal.value = 0;
     stopCountdown();
     await fetchSeats(showtime.id);
     subscribeToSeatUpdates(showtime.id);
@@ -75,12 +100,11 @@ export const useBookingStore = defineStore('booking', () => {
       const response = await api.get(`/showtimes/${showtimeId}/seats`);
       seats.value = response.data.data || response.data;
     } catch (error) {
-      console.warn('API error, using fallback mock seats matrix:', error);
+      console.warn('API error, generating mock seats:', error);
       generateMockSeats(showtimeId);
     }
   };
 
-  // Toggle seat selection & send hold request
   const toggleSeat = async (seat: Seat) => {
     if (seat.status === 'booked') return;
     if (seat.status === 'holding' && seat.held_by !== sessionId.value) return;
@@ -88,7 +112,6 @@ export const useBookingStore = defineStore('booking', () => {
     const index = selectedSeats.value.findIndex(s => s.id === seat.id);
 
     if (index >= 0) {
-      // Unselect
       selectedSeats.value.splice(index, 1);
       seat.status = 'available';
       seat.held_by = null;
@@ -103,9 +126,8 @@ export const useBookingStore = defineStore('booking', () => {
         stopCountdown();
       }
     } else {
-      // Select
       if (selectedSeats.value.length >= 8) {
-        alert('You can select a maximum of 8 seats per booking.');
+        alert('Bạn chỉ có thể chọn tối đa 8 ghế mỗi lần đặt.');
         return;
       }
       seat.status = 'selected';
@@ -126,7 +148,6 @@ export const useBookingStore = defineStore('booking', () => {
     }
   };
 
-  // Timer controls
   const startCountdown = (seconds: number = 600) => {
     stopCountdown();
     remainingSeconds.value = seconds;
@@ -157,13 +178,11 @@ export const useBookingStore = defineStore('booking', () => {
     selectedSeats.value = [];
   };
 
-  // Real-time WebSocket subscription
   const subscribeToSeatUpdates = (showtimeId: number) => {
     try {
       const echo = getEcho();
       echo.channel(`showtime.${showtimeId}`)
         .listen('.SeatStatusUpdated', (event: any) => {
-          console.log('Real-time seat update received:', event);
           const seatToUpdate = seats.value.find(s => s.id === event.seat_id);
           if (seatToUpdate) {
             if (event.held_by === sessionId.value && event.status === 'holding') {
@@ -175,11 +194,10 @@ export const useBookingStore = defineStore('booking', () => {
           }
         });
     } catch (e) {
-      console.warn('Echo websocket listener skipped or offline:', e);
+      console.warn('Echo listener skipped:', e);
     }
   };
 
-  // Process checkout & payment
   const processCheckout = async (paymentData: PaymentPayload) => {
     try {
       const response = await api.post('/bookings/checkout', {
@@ -192,11 +210,11 @@ export const useBookingStore = defineStore('booking', () => {
 
       const bookingResult = response.data.data || response.data;
       activeTicket.value = bookingResult;
+      bookingHistory.value.unshift(bookingResult);
       stopCountdown();
       selectedSeats.value = [];
       return bookingResult;
     } catch (err) {
-      console.warn('Checkout API call fallback, creating mock ticket result');
       const mockResult: Booking = {
         id: 'BK-' + Math.floor(100000 + Math.random() * 900000),
         booking_code: 'CR-' + Math.floor(100000 + Math.random() * 900000),
@@ -214,68 +232,105 @@ export const useBookingStore = defineStore('booking', () => {
         qr_code: 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=CINERESERVE-' + Math.floor(100000 + Math.random() * 900000)
       };
       activeTicket.value = mockResult;
+      bookingHistory.value.unshift(mockResult);
       stopCountdown();
       selectedSeats.value = [];
       return mockResult;
     }
   };
 
-  // Helper mock functions
-  function mockDuneMovie() {
-    const dune: Movie = {
-      id: 1,
-      title: 'Dune: Part Two',
-      original_title: 'Dune: Part Two (2024)',
-      slug: 'dune-part-two',
-      duration: 166,
-      release_date: '2024-03-01',
-      poster_url: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80',
-      backdrop_url: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=1600&auto=format&fit=crop&q=80',
-      trailer_url: 'https://www.youtube.com/watch?v=Way9Dexny3w',
-      rating: 8.6,
-      genre: ['Sci-Fi', 'Adventure', 'Action', 'IMAX'],
-      description: 'Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family. Facing a choice between the love of his life and the fate of the universe.',
-      director: 'Denis Villeneuve',
-      cast: ['Timothée Chalamet', 'Zendaya', 'Rebecca Ferguson', 'Javier Bardem'],
-      showtimes: [
-        {
-          id: 1,
-          movie_id: 1,
-          room_id: 1,
-          cinema_id: 1,
-          start_time: '18:30',
-          end_time: '21:16',
-          base_price: 12,
-          cinema: { id: 1, name: 'CineReserve IMAX - Laser', address: 'Landmark 81, B1 Floor', city: 'Ho Chi Minh City' },
-          room: { id: 1, cinema_id: 1, name: 'Hall 1 (IMAX)', room_type: 'IMAX Laser', total_seats: 120, rows: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J'] }
-        },
-        {
-          id: 2,
-          movie_id: 1,
-          room_id: 2,
-          cinema_id: 1,
-          start_time: '20:45',
-          end_time: '23:31',
-          base_price: 14,
-          cinema: { id: 1, name: 'CineReserve IMAX - Laser', address: 'Landmark 81, B1 Floor', city: 'Ho Chi Minh City' },
-          room: { id: 2, cinema_id: 1, name: 'Hall 2 (VIP Luxe)', room_type: 'VIP Gold Class', total_seats: 80, rows: ['A', 'B', 'C', 'D', 'E'] }
-        },
-        {
-          id: 3,
-          movie_id: 1,
-          room_id: 3,
-          cinema_id: 1,
-          start_time: '22:30',
-          end_time: '01:16',
-          base_price: 10,
-          cinema: { id: 1, name: 'CineReserve IMAX - Laser', address: 'Landmark 81, B1 Floor', city: 'Ho Chi Minh City' },
-          room: { id: 3, cinema_id: 1, name: 'Hall 3 (Dolby Atmos)', room_type: '2D Atmos', total_seats: 140, rows: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] }
-        }
-      ]
-    };
-    movies.value = [dune];
-    currentMovie.value = dune;
-    selectedShowtime.value = dune.showtimes![0];
+  function mockCatalog() {
+    // Fallback if offline
+    const list: Movie[] = [
+      {
+        id: 1,
+        title: 'Dune: Part Two',
+        original_title: 'Dune: Part Two (2024)',
+        slug: 'dune-part-two',
+        duration: 166,
+        release_date: '2024-03-01',
+        poster_url: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80',
+        backdrop_url: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=1600&auto=format&fit=crop&q=80',
+        trailer_url: 'https://www.youtube.com/embed/Way9Dexny3w',
+        rating: 8.6,
+        genre: ['Sci-Fi', 'Adventure', 'Action', 'IMAX'],
+        description: 'Paul Atreides hợp lực cùng Chani và người Fremen trên hành trình trả thù những kẻ đã hủy hoại gia đình mình.',
+        director: 'Denis Villeneuve',
+        cast: ['Timothée Chalamet', 'Zendaya', 'Rebecca Ferguson', 'Javier Bardem'],
+        status: 'now_showing',
+      },
+      {
+        id: 2,
+        title: 'Oppenheimer',
+        original_title: 'Oppenheimer (2023)',
+        slug: 'oppenheimer',
+        duration: 180,
+        release_date: '2023-07-21',
+        poster_url: 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=600&auto=format&fit=crop&q=80',
+        backdrop_url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1600&auto=format&fit=crop&q=80',
+        trailer_url: 'https://www.youtube.com/embed/uYPbbksJxIg',
+        rating: 8.9,
+        genre: ['Biography', 'Drama', 'History', 'IMAX 70mm'],
+        description: 'Câu chuyện về nhà vật lý lý thuyết J. Robert Oppenheimer và dự án bom nguyên tử Manhattan.',
+        director: 'Christopher Nolan',
+        cast: ['Cillian Murphy', 'Emily Blunt', 'Matt Damon', 'Robert Downey Jr.'],
+        status: 'now_showing',
+      },
+      {
+        id: 3,
+        title: 'Deadpool & Wolverine',
+        original_title: 'Deadpool & Wolverine (2024)',
+        slug: 'deadpool-and-wolverine',
+        duration: 128,
+        release_date: '2024-07-26',
+        poster_url: 'https://images.unsplash.com/photo-1568876694728-451bbf694b83?w=600&auto=format&fit=crop&q=80',
+        backdrop_url: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1600&auto=format&fit=crop&q=80',
+        trailer_url: 'https://www.youtube.com/embed/73_1biulkYk',
+        rating: 8.0,
+        genre: ['Action', 'Comedy', 'Sci-Fi', 'Marvel'],
+        description: 'Deadpool và Wolverine tái hợp trong một cuộc phiêu lưu bảo vệ đa vũ trụ đầy hài hước.',
+        director: 'Shawn Levy',
+        cast: ['Ryan Reynolds', 'Hugh Jackman', 'Emma Corrin'],
+        status: 'now_showing',
+      },
+      {
+        id: 4,
+        title: 'Spider-Man: Across the Spider-Verse',
+        original_title: 'Spider-Man: Across the Spider-Verse (2023)',
+        slug: 'spider-man-across-the-spider-verse',
+        duration: 140,
+        release_date: '2023-06-02',
+        poster_url: 'https://images.unsplash.com/photo-1635805737707-575885ab0820?w=600&auto=format&fit=crop&q=80',
+        backdrop_url: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=1600&auto=format&fit=crop&q=80',
+        trailer_url: 'https://www.youtube.com/embed/cqGjhVJWtEg',
+        rating: 8.7,
+        genre: ['Animation', 'Action', 'Adventure', '3D'],
+        description: 'Miles Morales du hành qua các chiều không gian Đa vũ trụ.',
+        director: 'Joaquim Dos Santos',
+        cast: ['Shameik Moore', 'Hailee Steinfeld', 'Oscar Isaac'],
+        status: 'now_showing',
+      },
+      {
+        id: 5,
+        title: 'Interstellar (10th Anniversary IMAX)',
+        original_title: 'Interstellar (2014)',
+        slug: 'interstellar',
+        duration: 169,
+        release_date: '2024-09-27',
+        poster_url: 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=600&auto=format&fit=crop&q=80',
+        backdrop_url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1600&auto=format&fit=crop&q=80',
+        trailer_url: 'https://www.youtube.com/embed/zSWdZVtXT7E',
+        rating: 8.7,
+        genre: ['Sci-Fi', 'Drama', 'Adventure', 'IMAX'],
+        description: 'Chuyến du hành tìm kiếm ngôi nhà mới cho nhân loại qua lỗ sâu không gian.',
+        director: 'Christopher Nolan',
+        cast: ['Matthew McConaughey', 'Anne Hathaway', 'Jessica Chastain'],
+        status: 'coming_soon',
+      }
+    ];
+
+    movies.value = list;
+    currentMovie.value = list[0];
     generateMockSeats(1);
   }
 
@@ -300,7 +355,6 @@ export const useBookingStore = defineStore('booking', () => {
           price = 18;
         }
 
-        // Mock statuses to match the design screenshot
         let status: SeatStatus = 'available';
         if (row === 'B' && (col === 4 || col === 5)) {
           status = 'holding';
@@ -331,14 +385,20 @@ export const useBookingStore = defineStore('booking', () => {
     selectedShowtime,
     seats,
     selectedSeats,
+    snackTotal,
     currentBooking,
     activeTicket,
+    bookingHistory,
+    isLoading,
     remainingSeconds,
     formattedRemainingTime,
     isTimerActive,
     isTimeCritical,
     isTimeExpired,
+    seatsPrice,
     totalPrice,
+    nowShowingMovies,
+    comingSoonMovies,
     sessionId,
     fetchMovies,
     selectMovie,
