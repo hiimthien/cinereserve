@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cinema-bg: #0B0F19;
+  --color-cinema-surface: #151C2C;
+  --color-cinema-card: #1E293B;
+  --color-cinema-border: rgba(255, 255, 255, 0.08);
+  --color-cinema-accent: #E11D48;
+  --color-cinema-gold: #F59E0B;
+  --color-cinema-text: #F8FAFC;
+  --color-cinema-muted: #94A3B8;
+
+  --color-seat-available: #334155;
+  --color-seat-available-hover: #475569;
+  --color-seat-selected: #10B981;
+  --color-seat-holding: #FBBF24;
+  --color-seat-booked: #450A0A;
+  --color-seat-booked-border: #7F1D1D;
+  --color-seat-vip: #D97706;
+
+  --shadow-glow-screen: 0 10px 40px -10px rgba(245, 158, 11, 0.3);
+  --shadow-glow-accent: 0 0 25px rgba(225, 29, 72, 0.4);
+  --shadow-glow-green: 0 0 20px rgba(16, 185, 129, 0.4);
+  --shadow-glow-gold: 0 0 20px rgba(251, 191, 36, 0.4);
+}
+
+@layer base {
+  body {
+    background-color: var(--color-cinema-bg);
+    color: var(--color-cinema-text);
+    font-family: 'Plus Jakarta Sans', Inter, sans-serif;
+    min-height: 100vh;
+  }
+}
+
+/* Curved cinema screen effect */
+.cinema-screen-curve {
+  border-bottom: 5px solid #f59e0b;
+  border-radius: 50% / 100% 100% 0 0;
+  box-shadow: 0 15px 35px -5px rgba(245, 158, 11, 0.4);
+}
+
+/* Ticket notch cutter effects */
+.ticket-notch-left {
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  background-color: #0b0f19;
+  border-radius: 50%;
+}
+
+.ticket-notch-right {
+  position: absolute;
+  right: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  background-color: #0b0f19;
+  border-radius: 50%;
+}
+
+@keyframes holding-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(0.96); }
+}
+
+.animate-holding {
+  animation: holding-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
