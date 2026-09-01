@@ -94,34 +94,44 @@
             <DollarSign class="w-4 h-4" />
           </div>
         </div>
-        <div>
-          <div class="text-2xl font-black text-white font-mono">
-            {{ formatVnd(analytics?.metrics?.total_revenue || 42850000) }}
-          </div>
-          <span class="text-[11px] text-emerald-400 font-bold flex items-center gap-1 mt-1">
-            <TrendingUp class="w-3 h-3" />
-            <span>+18.4% so với kỳ trước</span>
-          </span>
+        <div v-if="isLoading" class="space-y-2">
+          <div class="h-7 w-32 bg-slate-800 rounded-lg animate-pulse"></div>
+          <div class="h-4 w-24 bg-slate-800/60 rounded-md animate-pulse"></div>
         </div>
+        <div v-else>
+          <div class="text-2xl font-black text-white font-mono">
+            {{ formatVnd(analytics?.metrics?.total_revenue || 0) }}
+          </div>
+          <div class="flex items-center gap-1 text-[11px] text-emerald-400 font-bold mt-1">
+            <TrendingUp class="w-3 h-3" />
+            <span>Doanh thu vé & combo</span>
+          </div>
+        </div>
+        <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-emerald-500/5 rounded-full blur-xl pointer-events-none"></div>
       </div>
 
-      <!-- Metric 2: Total Tickets Sold -->
+      <!-- Metric 2: Tickets Sold -->
       <div class="p-5 rounded-3xl bg-cinema-surface/90 border border-cinema-border space-y-3 relative overflow-hidden shadow-xl hover:border-blue-500/30 transition-all">
         <div class="flex items-center justify-between">
-          <span class="text-xs font-bold text-slate-400">Vé Đã Bán</span>
+          <span class="text-xs font-bold text-slate-400">Số Vé Đã Bán</span>
           <div class="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
             <Ticket class="w-4 h-4" />
           </div>
         </div>
-        <div>
-          <div class="text-2xl font-black text-white font-mono">
-            {{ analytics?.metrics?.total_tickets || 384 }} vé
-          </div>
-          <span class="text-[11px] text-blue-400 font-bold flex items-center gap-1 mt-1">
-            <Users class="w-3 h-3" />
-            <span>Giao dịch thành công</span>
-          </span>
+        <div v-if="isLoading" class="space-y-2">
+          <div class="h-7 w-24 bg-slate-800 rounded-lg animate-pulse"></div>
+          <div class="h-4 w-28 bg-slate-800/60 rounded-md animate-pulse"></div>
         </div>
+        <div v-else>
+          <div class="text-2xl font-black text-white font-mono">
+            {{ analytics?.metrics?.total_tickets || 0 }} <span class="text-xs text-slate-400 font-normal">vé</span>
+          </div>
+          <div class="flex items-center gap-1 text-[11px] text-blue-400 font-bold mt-1">
+            <Users class="w-3 h-3" />
+            <span>Đã xác nhận & check-in</span>
+          </div>
+        </div>
+        <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-blue-500/5 rounded-full blur-xl pointer-events-none"></div>
       </div>
 
       <!-- Metric 3: Occupancy Rate -->
@@ -132,83 +142,90 @@
             <Percent class="w-4 h-4" />
           </div>
         </div>
-        <div>
-          <div class="text-2xl font-black text-amber-400 font-mono">
-            {{ analytics?.metrics?.occupancy_rate || 72.8 }}%
-          </div>
-          <span class="text-[11px] text-amber-300 font-bold flex items-center gap-1 mt-1">
-            <span>Rất cao vào khung giờ tối</span>
-          </span>
+        <div v-if="isLoading" class="space-y-2">
+          <div class="h-7 w-20 bg-slate-800 rounded-lg animate-pulse"></div>
+          <div class="h-4 w-32 bg-slate-800/60 rounded-md animate-pulse"></div>
         </div>
+        <div v-else>
+          <div class="text-2xl font-black text-white font-mono">
+            {{ analytics?.metrics?.occupancy_rate || 0 }}%
+          </div>
+          <div class="flex items-center gap-1 text-[11px] text-amber-400 font-bold mt-1">
+            <span>Giờ vàng & cuối tuần</span>
+          </div>
+        </div>
+        <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-amber-500/5 rounded-full blur-xl pointer-events-none"></div>
       </div>
 
       <!-- Metric 4: Active Showtimes -->
-      <div class="p-5 rounded-3xl bg-cinema-surface/90 border border-cinema-border space-y-3 relative overflow-hidden shadow-xl hover:border-rose-500/30 transition-all">
+      <div class="p-5 rounded-3xl bg-cinema-surface/90 border border-cinema-border space-y-3 relative overflow-hidden shadow-xl hover:border-purple-500/30 transition-all">
         <div class="flex items-center justify-between">
-          <span class="text-xs font-bold text-slate-400">Suất Chiếu Đang Chạy</span>
-          <div class="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center border border-rose-500/20">
+          <span class="text-xs font-bold text-slate-400">Suất Chiếu Đang Mở</span>
+          <div class="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center border border-purple-500/20">
             <Calendar class="w-4 h-4" />
           </div>
         </div>
-        <div>
-          <div class="text-2xl font-black text-white font-mono">
-            {{ analytics?.metrics?.active_showtimes_count || 126 }} suất
-          </div>
-          <span class="text-[11px] text-slate-400 font-bold block mt-1">
-            Trên 24 phòng chiếu toàn quốc
-          </span>
+        <div v-if="isLoading" class="space-y-2">
+          <div class="h-7 w-28 bg-slate-800 rounded-lg animate-pulse"></div>
+          <div class="h-4 w-28 bg-slate-800/60 rounded-md animate-pulse"></div>
         </div>
+        <div v-else>
+          <div class="text-2xl font-black text-white font-mono">
+            {{ analytics?.metrics?.active_showtimes_count || 0 }} <span class="text-xs text-slate-400 font-normal">suất</span>
+          </div>
+          <div class="flex items-center gap-1 text-[11px] text-purple-400 font-bold mt-1">
+            <span>Trên {{ analytics?.metrics?.total_cinemas_count || 30 }} cụm rạp toàn quốc</span>
+          </div>
+        </div>
+        <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-purple-500/5 rounded-full blur-xl pointer-events-none"></div>
       </div>
 
     </div>
 
-    <!-- Charts Section: Revenue Area Chart & Cinema Share -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <!-- Charts Section: Main Trend Bar Chart & Cinema Share -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
       
-      <!-- Left: Revenue Area Chart (8 Cols) -->
+      <!-- Left: Revenue Trend Chart (8 Cols) -->
       <div class="lg:col-span-8 p-6 rounded-3xl bg-cinema-surface/90 border border-cinema-border space-y-6 shadow-2xl">
         <div class="flex items-center justify-between">
           <div>
-            <h3 class="text-base font-extrabold text-white">Biểu Đồ Xu Hướng Doanh Thu</h3>
-            <p class="text-xs text-slate-400 mt-0.5">Thống kê doanh thu bán vé & combo theo chu kỳ lọc</p>
+            <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+              <TrendingUp class="w-4 h-4 text-cinema-accent" />
+              <span>Biểu Đồ Doanh Thu Chi Tiết</span>
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">Biểu đồ cột thể hiện biến động doanh thu theo mốc thời gian đã chọn</p>
           </div>
-          <span class="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/20">
-            Real-time Sync
-          </span>
         </div>
 
-        <!-- SVG Revenue Chart -->
-        <div class="h-64 w-full relative flex flex-col justify-end pt-6">
-          <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20">
-            <div class="border-b border-white w-full"></div>
-            <div class="border-b border-white w-full"></div>
-            <div class="border-b border-white w-full"></div>
-            <div class="border-b border-white w-full"></div>
+        <!-- Custom SVG/HTML Bar Chart -->
+        <div v-if="isLoading" class="h-64 flex items-end gap-3 pt-8 pb-2 border-b border-white/10 px-2">
+          <div v-for="i in 10" :key="i" class="flex-1 flex flex-col items-center gap-2 h-full justify-end">
+            <div class="w-full max-w-[36px] bg-slate-800 rounded-t-xl animate-pulse" :style="{ height: `${25 + (i * 7) % 65}%` }"></div>
+            <div class="w-6 h-3 bg-slate-800/60 rounded animate-pulse"></div>
           </div>
-
-          <div class="flex items-end justify-between gap-2 h-48 z-10 px-2">
-            <div 
-              v-for="bar in analytics?.daily_revenue || []" 
-              :key="bar.date"
-              class="flex-1 flex flex-col items-center gap-2 group relative h-full justify-end"
-            >
-              <!-- Tooltip on Hover -->
-              <div class="absolute -top-12 bg-slate-900 border border-white/20 text-white text-[10px] font-bold py-1 px-2.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-2xl z-20">
-                <div>{{ formatVnd(bar.revenue) }}</div>
-                <div class="text-[9px] text-amber-400 font-mono">{{ bar.tickets }} vé</div>
-              </div>
-
-              <!-- Bar -->
-              <div 
-                class="w-full max-w-[36px] bg-gradient-to-t from-cinema-accent to-rose-400 rounded-t-xl group-hover:brightness-125 transition-all shadow-glow-accent cursor-pointer"
-                :style="{ height: `${Math.max(12, Math.min(100, (bar.revenue / maxDailyRev) * 100))}%` }"
-              ></div>
-
-              <!-- Date Label -->
-              <span class="text-[10px] text-slate-400 font-bold group-hover:text-white transition-colors">
-                {{ bar.date }}
-              </span>
+        </div>
+        <div v-else class="h-64 flex items-end gap-2 sm:gap-4 pt-8 pb-2 border-b border-white/10 px-2 overflow-x-auto">
+          <div 
+            v-for="(bar, i) in analytics?.daily_revenue || []" 
+            :key="i"
+            class="flex-1 flex flex-col items-center gap-2 h-full justify-end group min-w-[28px]"
+          >
+            <!-- Hover Tooltip -->
+            <div class="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-950/95 border border-cinema-border rounded-xl px-2.5 py-1.5 text-[10px] text-white text-center pointer-events-none absolute -translate-y-16 shadow-2xl z-20 whitespace-nowrap">
+              <div class="font-bold text-amber-400 font-mono">{{ formatVnd(bar.revenue) }}</div>
+              <div class="text-slate-400">{{ bar.tickets }} vé đã bán</div>
             </div>
+
+            <!-- Bar -->
+            <div 
+              class="w-full max-w-[36px] bg-gradient-to-t from-cinema-accent to-rose-400 rounded-t-xl group-hover:brightness-125 transition-all shadow-glow-accent cursor-pointer"
+              :style="{ height: `${Math.max(12, Math.min(100, (bar.revenue / maxDailyRev) * 100))}%` }"
+            ></div>
+
+            <!-- Date Label -->
+            <span class="text-[10px] text-slate-400 font-bold group-hover:text-white transition-colors">
+              {{ bar.date }}
+            </span>
           </div>
         </div>
 
@@ -221,7 +238,16 @@
           <p class="text-xs text-slate-400 mt-0.5">Tỉ trọng doanh thu các hệ thống rạp</p>
         </div>
 
-        <div class="space-y-4">
+        <div v-if="isLoading" class="space-y-4">
+          <div v-for="i in 5" :key="i" class="space-y-2">
+            <div class="flex justify-between">
+              <div class="h-3.5 w-24 bg-slate-800 rounded animate-pulse"></div>
+              <div class="h-3.5 w-8 bg-slate-800 rounded animate-pulse"></div>
+            </div>
+            <div class="h-2 w-full bg-slate-800/60 rounded-full animate-pulse"></div>
+          </div>
+        </div>
+        <div v-else class="space-y-4">
           <div 
             v-for="c in analytics?.cinema_distribution || []" 
             :key="c.name"
@@ -274,7 +300,20 @@
               <th class="p-3 text-right">Doanh Thu</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-white/5">
+          <tbody v-if="isLoading" class="divide-y divide-white/5">
+            <tr v-for="i in 5" :key="i">
+              <td class="p-3"><div class="h-4 w-6 bg-slate-800 rounded animate-pulse"></div></td>
+              <td class="p-3 flex items-center gap-3">
+                <div class="w-9 h-12 bg-slate-800 rounded-lg animate-pulse"></div>
+                <div class="h-4 w-40 bg-slate-800 rounded animate-pulse"></div>
+              </td>
+              <td class="p-3"><div class="h-4 w-12 bg-slate-800 rounded animate-pulse"></div></td>
+              <td class="p-3"><div class="h-4 w-16 bg-slate-800 rounded animate-pulse"></div></td>
+              <td class="p-3"><div class="h-4 w-14 bg-slate-800 rounded animate-pulse"></div></td>
+              <td class="p-3 text-right"><div class="h-4 w-20 bg-slate-800 rounded ml-auto animate-pulse"></div></td>
+            </tr>
+          </tbody>
+          <tbody v-else class="divide-y divide-white/5">
             <tr 
               v-for="(m, idx) in analytics?.top_movies || []" 
               :key="m.id"
@@ -300,7 +339,6 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
 import { 
   LayoutDashboard,
   DollarSign, 
@@ -313,59 +351,18 @@ import {
   ChevronDown,
   ChevronRight
 } from 'lucide-vue-next';
-import api from '../../services/api';
+import { useAdminAnalytics } from '../../composables/useAdminAnalytics';
 
-const analytics = ref<any>(null);
-const cinemas = ref<any[]>([]);
-const movies = ref<any[]>([]);
-const isLoading = ref(false);
-
-const selectedPeriod = ref('7days');
-const selectedCinemaId = ref<string | number>('all');
-const selectedMovieId = ref<string | number>('all');
-
-const formatVnd = (val?: number) => {
-  if (!val) return '0 đ';
-  return new Intl.NumberFormat('vi-VN').format(val) + ' đ';
-};
-
-const maxDailyRev = computed(() => {
-  if (!analytics.value?.daily_revenue?.length) return 10000000;
-  return Math.max(...analytics.value.daily_revenue.map((d: any) => d.revenue || 0), 1000000);
-});
-
-const loadFilterMetadata = async () => {
-  try {
-    const [cinemasRes, moviesRes] = await Promise.all([
-      api.get('/cinemas'),
-      api.get('/movies')
-    ]);
-    if (cinemasRes.data?.data) cinemas.value = cinemasRes.data.data;
-    if (moviesRes.data?.data) movies.value = moviesRes.data.data;
-  } catch (e) {}
-};
-
-const fetchAnalytics = async () => {
-  isLoading.value = true;
-  try {
-    const params: any = {
-      period: selectedPeriod.value,
-      cinema_id: selectedCinemaId.value !== 'all' ? selectedCinemaId.value : undefined,
-      movie_id: selectedMovieId.value !== 'all' ? selectedMovieId.value : undefined,
-    };
-
-    const res = await api.get('/admin/analytics', { params });
-    if (res.data?.data) {
-      analytics.value = res.data.data;
-    }
-  } catch (e) {
-    console.warn('Error fetching analytics:', e);
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-onMounted(async () => {
-  await Promise.all([loadFilterMetadata(), fetchAnalytics()]);
-});
+const {
+  analytics,
+  cinemas,
+  movies,
+  isLoading,
+  selectedPeriod,
+  selectedCinemaId,
+  selectedMovieId,
+  maxDailyRev,
+  formatVnd,
+  fetchAnalytics,
+} = useAdminAnalytics();
 </script>

@@ -4,54 +4,74 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Models\Movie;
 use App\Services\TmdbMovieSyncService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Đồng bộ phim từ TMDb API
-        $this->command->info('🎬 Đang đồng bộ phim thực tế từ TMDb API...');
+        $this->command->info('🚀 Bắt đầu khởi tạo dữ liệu thực tế chuẩn rạp chiếu phim CineReserve...');
+
+        // Dọn dẹp sạch danh mục phim cũ để chống trùng lặp
+        Schema::disableForeignKeyConstraints();
+        Movie::truncate();
+        Schema::enableForeignKeyConstraints();
+
+        // 1. Đồng bộ phim tự động từ TMDb API (The Movie Database)
+        $this->command->info('🎬 1. Đang đồng bộ phim trực tuyến thời gian thực từ TMDb API (Region: VN)...');
+        $hasTmdbMovies = false;
+
         try {
             /** @var TmdbMovieSyncService $tmdbService */
             $tmdbService = app(TmdbMovieSyncService::class);
-            $syncStats = $tmdbService->syncAllMovies(2, 1);
-            $this->command->info("✅ Đã cập nhật {$syncStats['total_movies']} phim từ TMDb!");
-        } catch (\Exception $e) {
-            $this->command->warn('⚠️ Không thể kết nối TMDb API, giữ nguyên phim hiện có.');
-            Log::warning('TMDb Sync warning in seeder: ' . $e->getMessage());
+            $syncStats = $tmdbService->syncAllMovies(1, 1);
+            if ($syncStats['total_movies'] > 0) {
+                $hasTmdbMovies = true;
+                $this->command->info("✅ Đã đồng bộ thành công {$syncStats['total_movies']} phim mới nhất từ TMDb!");
+            }
+        } catch (\Throwable $e) {
+            $this->command->warn('⚠️ Không thể kết nối TMDb API, sẽ nạp danh mục phim mẫu.');
+            Log::warning('TMDb Sync fallback in seeder: ' . $e->getMessage());
         }
 
-        // 2. Khởi tạo toàn bộ chuỗi rạp chiếu phim tại Việt Nam
-        $this->command->info('🏢 Đang nạp danh sách cụm rạp toàn quốc...');
-        $this->call(VietnamCinemasSeeder::class);
+        // Nếu TMDb trống hoặc chưa có phim, nạp RealisticMoviesSeeder làm dữ liệu gốc
+        if (!$hasTmdbMovies || Movie::count() === 0) {
+            $this->command->info('📦 Nạp danh mục 15 phim bom tấn mẫu chuẩn Cục Điện Ảnh...');
+            $this->call(RealisticMoviesSeeder::class);
+        }
 
-        // 3. Khởi tạo lịch chiếu dày đặc 14 ngày tới
-        $this->command->info('🎟️ Đang sinh lịch chiếu cho 14 ngày liên tiếp...');
-        $this->call(ShowtimeGeneratorSeeder::class);
-
-        // 4. Khởi tạo danh mục Bắp Nước Combos
-        $this->command->info('🍿 Đang nạp danh mục Combo Bắp Nước...');
-        $this->call(SnackSeeder::class);
-
-        // 5. Khởi tạo Mã Giảm Giá / Vouchers
-        $this->command->info('🏷️ Đang nạp danh sách Voucher Khuyến Mãi...');
-        $this->call(VoucherSeeder::class);
-
-        // 6. Khởi tạo Danh mục Đổi Điểm Thưởng Loyalty
-        $this->command->info('🎁 Đang nạp danh mục Đổi Thưởng Điểm CinePoints...');
-        $this->call(LoyaltyRewardSeeder::class);
-
-        // 7. Khởi tạo Tài Khoản Thành Viên Mẫu
-        $this->command->info('👤 Đang nạp tài khoản thành viên (Member, VIP, Diamond)...');
+        // 2. Tài Khoản Thành Viên (Admin, Staff, Diamond, Gold, Silver, Member)
+        $this->command->info('👤 2. Đang nạp tài khoản người dùng mẫu...');
         $this->call(UserSeeder::class);
 
-        // 8. Đảm bảo toàn bộ giá tiền chuẩn VNĐ
-        $this->call(FixUsdPricesSeeder::class);
+        // 3. Cụm Rạp & Phòng Chiếu Toàn Quốc
+        $this->command->info('🏢 3. Đang nạp cụm rạp, phòng chiếu và ma trận ghế...');
+        $this->call(VietnamCinemasSeeder::class);
 
-        $this->command->info('🎉 Hoàn tất nạp toàn bộ cơ sở dữ liệu CineReserve!');
+        // 4. Lịch Chiếu 7 Ngày & Ghế Đã Bán Sinh Động
+        $this->command->info('🎟️ 4. Đang sinh lịch chiếu & 12 đơn đặt vé mẫu thực tế...');
+        $this->call(RealisticShowtimesAndBookingsSeeder::class);
 
+        // 5. Đánh Giá & Nhận Xét Phim Thực Tế
+        $this->command->info('⭐ 5. Đang nạp 40+ đánh giá & nhận xét phim sinh động...');
+        $this->call(MovieReviewsSeeder::class);
+
+        // 6. Combo Bắp Nước F&B
+        $this->command->info('🍿 6. Đang nạp danh mục Combo Bắp Nước...');
+        $this->call(SnackSeeder::class);
+
+        // 7. Mã Voucher Giảm Giá
+        $this->command->info('🏷️ 7. Đang nạp danh sách Voucher Khuyến Mãi...');
+        $this->call(VoucherSeeder::class);
+
+        // 8. Đổi Điểm Thưởng CinePoints
+        $this->command->info('🎁 8. Đang nạp danh mục Đổi Thưởng Điểm Loyalty...');
+        $this->call(LoyaltyRewardSeeder::class);
+
+        $this->command->info('🎉 HOÀN TẤT NẠP TOÀN BỘ CƠ SỞ DỮ LIỆU THỰC TẾ CHO CINERESERVE!');
     }
 }

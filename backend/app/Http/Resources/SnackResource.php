@@ -14,13 +14,13 @@ class SnackResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'category' => $this->category,
+            'description' => $this->description,
             'price' => (float) $this->price,
             'image_url' => $this->image_url,
-            'description' => $this->description,
-            'is_available' => (bool) $this->is_available,
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
+            'category' => $this->category ?? 'combo',
+            'is_active' => (bool) ($this->is_active ?? true),
+            'created_at' => $this->created_at?->toIso8601String(),
+            'updated_at' => $this->updated_at?->toIso8601String(),
         ];
     }
 }

@@ -1,31 +1,32 @@
 <template>
   <div class="space-y-1.5 w-full">
-    <label v-if="label" class="block text-xs font-semibold text-cinema-muted">
-      {{ label }}
+    <!-- Label with Clean Single Asterisk -->
+    <label v-if="label" class="block text-xs font-bold text-cinema-muted uppercase tracking-wider pl-1">
+      {{ cleanLabel }}
       <span v-if="required" class="text-cinema-accent">*</span>
     </label>
 
-    <div class="relative flex items-center">
+    <div class="relative flex items-center group">
       <!-- Prefix Icon -->
-      <div v-if="$slots.prefix" class="absolute left-3.5 flex items-center pointer-events-none text-slate-400">
+      <div v-if="$slots.prefix" class="absolute left-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-cinema-accent transition-colors">
         <slot name="prefix" />
       </div>
 
       <input
         ref="inputRef"
-        :type="type"
+        :type="actualType"
         :value="modelValue"
         :placeholder="placeholder"
         :disabled="disabled"
         :required="required"
         :maxlength="maxlength"
-        class="w-full bg-cinema-card/80 border rounded-xl py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none transition-colors"
+        class="w-full bg-slate-900/90 hover:bg-slate-900 border rounded-2xl py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-all duration-200 shadow-inner"
         :class="[
           $slots.prefix ? 'pl-10' : 'pl-4',
-          $slots.suffix ? 'pr-10' : 'pr-4',
+          ($slots.suffix || isPasswordType || clearable) ? 'pr-11' : 'pr-4',
           error 
-            ? 'border-red-500/80 focus:border-red-500' 
-            : 'border-cinema-border focus:border-cinema-accent',
+            ? 'border-rose-500/80 ring-2 ring-rose-500/20' 
+            : 'border-cinema-border hover:border-white/20 focus:border-cinema-accent focus:ring-2 focus:ring-cinema-accent/20 focus:shadow-glow-accent',
           disabled ? 'opacity-50 cursor-not-allowed' : ''
         ]"
         @input="handleInput"
@@ -33,20 +34,50 @@
         @blur="$emit('blur', $event)"
       />
 
-      <!-- Suffix Icon -->
-      <div v-if="$slots.suffix" class="absolute right-3.5 flex items-center pointer-events-none text-slate-400">
-        <slot name="suffix" />
+      <!-- Password Eye Toggle or Suffix Icon or Clear Button -->
+      <div class="absolute right-3 flex items-center gap-1.5">
+        <!-- Clear Text Button -->
+        <button
+          v-if="clearable && modelValue && !disabled"
+          type="button"
+          @click="clearText"
+          class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+          tabindex="-1"
+          aria-label="Xóa nội dung"
+        >
+          <X class="w-3.5 h-3.5" />
+        </button>
+
+        <!-- Eye toggle for password -->
+        <button
+          v-if="isPasswordType && !disabled"
+          type="button"
+          @click="showPassword = !showPassword"
+          class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+          tabindex="-1"
+          aria-label="Hiện/Ẩn mật khẩu"
+        >
+          <component :is="showPassword ? EyeOff : Eye" class="w-3.5 h-3.5" />
+        </button>
+
+        <!-- Custom Suffix Slot -->
+        <div v-if="$slots.suffix" class="text-slate-400 pointer-events-none">
+          <slot name="suffix" />
+        </div>
       </div>
     </div>
 
     <!-- Error message or helper text -->
-    <p v-if="error" class="text-[11px] text-red-400">{{ error }}</p>
-    <p v-else-if="helper" class="text-[11px] text-cinema-muted">{{ helper }}</p>
+    <p v-if="error" class="text-[11px] text-rose-400 font-semibold pl-1 flex items-center gap-1">
+      <span>{{ error }}</span>
+    </p>
+    <p v-else-if="helper" class="text-[11px] text-cinema-muted pl-1">{{ helper }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
+import { Eye, EyeOff, X } from 'lucide-vue-next';
 
 interface Props {
   modelValue: string | number;
@@ -58,9 +89,10 @@ interface Props {
   error?: string;
   helper?: string;
   maxlength?: number;
+  clearable?: boolean;
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   label: '',
   placeholder: '',
   type: 'text',
@@ -68,6 +100,7 @@ withDefaults(defineProps<Props>(), {
   required: false,
   error: '',
   helper: '',
+  clearable: false,
 });
 
 const emit = defineEmits<{
@@ -77,10 +110,28 @@ const emit = defineEmits<{
 }>();
 
 const inputRef = ref<HTMLInputElement | null>(null);
+const showPassword = ref(false);
+
+const cleanLabel = computed(() => {
+  return props.label ? props.label.replace(/\s*\*+\s*$/, '') : '';
+});
+
+const isPasswordType = computed(() => props.type === 'password');
+const actualType = computed(() => {
+  if (isPasswordType.value) {
+    return showPassword.value ? 'text' : 'password';
+  }
+  return props.type;
+});
 
 const handleInput = (event: Event) => {
   const target = event.target as HTMLInputElement;
   emit('update:modelValue', target.value);
+};
+
+const clearText = () => {
+  emit('update:modelValue', '');
+  inputRef.value?.focus();
 };
 
 defineExpose({

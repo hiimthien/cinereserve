@@ -141,7 +141,6 @@
       :title="isEditing ? 'Chỉnh Sửa Thông Tin Phim' : 'Thêm Phim Chiếu Rạp Mới'"
       maxWidth="3xl"
     >
-
       <form @submit.prevent="handleSubmit" class="space-y-4 p-1">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <BaseInput 
@@ -157,15 +156,27 @@
           />
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <BaseSelect 
             v-model="form.status"
             label="Trạng Thái Chiếu *"
             required
           >
-            <option value="now_showing">🟢 Đang Chiếu (Now Showing)</option>
-            <option value="early_premiere">✨ Suất Chiếu Sớm (Sneak Show)</option>
-            <option value="coming_soon">⏳ Sắp Chiếu (Coming Soon)</option>
+            <option value="now_showing">🟢 Đang Chiếu</option>
+            <option value="early_premiere">✨ Suất Chiếu Sớm</option>
+            <option value="coming_soon">⏳ Sắp Chiếu</option>
+          </BaseSelect>
+
+          <BaseSelect 
+            v-model="form.age_rating"
+            label="Nhãn Độ Tuổi *"
+            required
+          >
+            <option value="P">🟢 P - Mọi lứa tuổi</option>
+            <option value="K">🔵 K - Dưới 13 tuổi (kèm PH)</option>
+            <option value="T13">🟡 T13 - Khán giả từ 13+</option>
+            <option value="T16">🟠 T16 - Khán giả từ 16+</option>
+            <option value="T18">🔴 T18 - Khán giả từ 18+</option>
           </BaseSelect>
 
           <BaseInput 
@@ -232,16 +243,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
 import { 
   Clapperboard, 
-  Film,
+  Film, 
   Plus, 
   Search, 
   Edit, 
-  Trash2
+  Trash2 
 } from 'lucide-vue-next';
-import api from '../../services/api';
+import { useAdminMovies } from '../../composables/useAdminMovies';
 import BaseModal from '../../components/base/BaseModal.vue';
 import BaseInput from '../../components/base/BaseInput.vue';
 import BaseButton from '../../components/base/BaseButton.vue';
@@ -249,172 +259,27 @@ import BaseBadge from '../../components/base/BaseBadge.vue';
 import BaseSelect from '../../components/base/BaseSelect.vue';
 import BasePagination from '../../components/base/BasePagination.vue';
 
-const movies = ref<any[]>([]);
-const totalMovies = ref(0);
-const totalPages = ref(1);
-const currentPage = ref(1);
-const perPage = ref(8);
-const statusFilter = ref('all');
-const searchQuery = ref('');
-const isLoading = ref(false);
-
-const isModalOpen = ref(false);
-const isEditing = ref(false);
-const editingId = ref<number | null>(null);
-const isSubmitting = ref(false);
-
-const form = ref({
-  title: '',
-  original_title: '',
-  description: '',
-  duration: 120,
-  release_date: '',
-  rating: 8.5,
-  poster_url: '',
-  backdrop_url: '',
-  trailer_url: '',
-  status: 'now_showing',
-});
-
-const formatReleaseDate = (val?: string) => {
-  if (!val) return 'Chưa xác định';
-  const clean = val.split('T')[0].split(' ')[0];
-  const parts = clean.split('-');
-  if (parts.length === 3) {
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
-  }
-  return clean;
-};
-
-const formatStatus = (status: string) => {
-  switch (status) {
-    case 'now_showing': return '🟢 ĐANG CHIẾU';
-    case 'early_premiere': return '✨ SUẤT CHIẾU SỚM';
-    default: return '⏳ SẮP CHIẾU';
-  }
-};
-
-const getBadgeVariant = (status: string): 'emerald' | 'purple' | 'amber' => {
-  switch (status) {
-    case 'now_showing': return 'emerald';
-    case 'early_premiere': return 'purple';
-    default: return 'amber';
-  }
-};
-
-let searchDebounce: any = null;
-const handleSearch = () => {
-  clearTimeout(searchDebounce);
-  searchDebounce = setTimeout(() => {
-    currentPage.value = 1;
-    fetchMovies();
-  }, 350);
-};
-
-const onFilterChange = () => {
-  currentPage.value = 1;
-  fetchMovies();
-};
-
-const changePage = (p: number) => {
-  currentPage.value = p;
-  fetchMovies();
-};
-
-const fetchMovies = async () => {
-  isLoading.value = true;
-  try {
-    const params: any = {
-      page: currentPage.value,
-      per_page: perPage.value,
-      status: statusFilter.value !== 'all' ? statusFilter.value : undefined,
-      search: searchQuery.value.trim() || undefined,
-    };
-
-    const res = await api.get('/admin/movies', { params });
-    if (res.data?.data) {
-      movies.value = res.data.data;
-      if (res.data.meta) {
-        totalMovies.value = res.data.meta.total;
-        totalPages.value = res.data.meta.last_page;
-        currentPage.value = res.data.meta.current_page;
-      } else if (res.data.pagination) {
-        totalMovies.value = res.data.pagination.total;
-        totalPages.value = res.data.pagination.last_page;
-        currentPage.value = res.data.pagination.current_page;
-      }
-    }
-  } catch (e) {
-    console.warn('Error fetching admin movies:', e);
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-const openCreateModal = () => {
-  isEditing.value = false;
-  editingId.value = null;
-  form.value = {
-    title: '',
-    original_title: '',
-    description: '',
-    duration: 120,
-    release_date: new Date().toISOString().split('T')[0],
-    rating: 8.5,
-    poster_url: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600',
-    backdrop_url: '',
-    trailer_url: '',
-    status: 'now_showing',
-  };
-  isModalOpen.value = true;
-};
-
-const openEditModal = (movie: any) => {
-  isEditing.value = true;
-  editingId.value = movie.id;
-  form.value = {
-    title: movie.title,
-    original_title: movie.original_title || '',
-    description: movie.description || '',
-    duration: movie.duration || movie.duration_minutes || 120,
-    release_date: movie.release_date ? movie.release_date.split('T')[0] : '',
-    rating: movie.rating || 8.5,
-    poster_url: movie.poster_url || '',
-    backdrop_url: movie.backdrop_url || '',
-    trailer_url: movie.trailer_url || '',
-    status: movie.status || 'now_showing',
-  };
-  isModalOpen.value = true;
-};
-
-const handleSubmit = async () => {
-  isSubmitting.value = true;
-  try {
-    if (isEditing.value && editingId.value) {
-      await api.put(`/admin/movies/${editingId.value}`, form.value);
-    } else {
-      await api.post('/admin/movies', form.value);
-    }
-    isModalOpen.value = false;
-    await fetchMovies();
-  } catch (e: any) {
-    alert(e.response?.data?.message || 'Có lỗi xảy ra khi lưu thông tin phim.');
-  } finally {
-    isSubmitting.value = false;
-  }
-};
-
-const handleDelete = async (id: number) => {
-  if (!confirm('Bạn có chắc chắn muốn xóa phim này khỏi hệ thống?')) return;
-  try {
-    await api.delete(`/admin/movies/${id}`);
-    await fetchMovies();
-  } catch (e: any) {
-    alert(e.response?.data?.message || 'Không thể xóa phim.');
-  }
-};
-
-onMounted(() => {
-  fetchMovies();
-});
+const {
+  movies,
+  totalMovies,
+  totalPages,
+  currentPage,
+  statusFilter,
+  searchQuery,
+  isLoading,
+  isModalOpen,
+  isEditing,
+  isSubmitting,
+  form,
+  formatReleaseDate,
+  formatStatus,
+  getBadgeVariant,
+  handleSearch,
+  onFilterChange,
+  changePage,
+  openCreateModal,
+  openEditModal,
+  handleSubmit,
+  handleDelete,
+} = useAdminMovies();
 </script>

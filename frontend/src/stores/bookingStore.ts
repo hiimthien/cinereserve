@@ -3,8 +3,11 @@ import { ref, computed } from 'vue';
 import type { Movie, Showtime, Seat, SeatType, SeatStatus, Booking, PaymentPayload } from '../types';
 import api from '../services/api';
 import { getEcho } from '../services/echo';
+import { useToast } from '../composables/useToast';
+import { useDynamicPricing } from '../composables/useDynamicPricing';
 
 export const useBookingStore = defineStore('booking', () => {
+  const toast = useToast();
   // State
   const movies = ref<Movie[]>([]);
   const currentMovie = ref<Movie | null>(null);
@@ -23,19 +26,17 @@ export const useBookingStore = defineStore('booking', () => {
   const isTimerActive = ref<boolean>(false);
   let timerInterval: any = null;
 
-  // Session ID for tracking user's seat holding
+  // Session ID for tracking user's seat holding (isolated per tab)
   const sessionId = ref<string>(
-    localStorage.getItem('cinereserve_session') || 'sess_' + Math.random().toString(36).substring(2, 12)
+    sessionStorage.getItem('cinereserve_session') || 'sess_' + Math.random().toString(36).substring(2, 12)
   );
-  localStorage.setItem('cinereserve_session', sessionId.value);
+  sessionStorage.setItem('cinereserve_session', sessionId.value);
 
-  // Computed
+  // Computed (Dynamic Pricing Engine)
   const seatsPrice = computed(() => {
-    const base = selectedShowtime.value?.base_price || 95000;
+    const { getDynamicSeatPrice } = useDynamicPricing();
     return selectedSeats.value.reduce((total, seat) => {
-      let p = seat.price || base;
-      if (seat.type === 'vip') p = base + 20000;
-      if (seat.type === 'couple') p = (base * 2) + 30000;
+      const p = getDynamicSeatPrice(seat, selectedShowtime.value, selectedDate.value);
       return total + p;
     }, 0);
   });
@@ -117,9 +118,6 @@ export const useBookingStore = defineStore('booking', () => {
 
   const selectMovie = (movie: Movie) => {
     currentMovie.value = movie;
-    if (movie.showtimes && movie.showtimes.length > 0) {
-      selectedShowtime.value = movie.showtimes[0];
-    }
   };
 
   const selectDate = (date: string) => {
@@ -148,13 +146,13 @@ export const useBookingStore = defineStore('booking', () => {
   const toggleSeat = async (seat: Seat) => {
     // 1. Block click if seat is already booked
     if (seat.status === 'booked') {
-      alert(`Ghế ${seat.row}${seat.number} đã được bán.`);
+      toast.warning(`Ghế ${seat.row}${seat.number} đã được bán. Vui lòng chọn ghế khác!`, 'Ghế Không Khả Dụng');
       return;
     }
 
     // 2. Block click if seat is currently held by someone else
     if (seat.status === 'holding' && seat.held_by !== sessionId.value) {
-      alert(`Ghế ${seat.row}${seat.number} đang được người dùng khác giữ chỗ trong 10 phút.`);
+      toast.warning(`Ghế ${seat.row}${seat.number} đang được người dùng khác giữ chỗ trong 10 phút.`, 'Ghế Đang Giữ Chỗ');
       return;
     }
 
@@ -178,7 +176,7 @@ export const useBookingStore = defineStore('booking', () => {
     } else {
       // Check maximum 8 seats limit
       if (selectedSeats.value.length >= 8) {
-        alert('Bạn chỉ có thể chọn tối đa 8 ghế mỗi lần đặt.');
+        toast.error('Bạn chỉ có thể chọn tối đa 8 ghế mỗi lần đặt vé.', 'Giới Hạn Chọn Ghế');
         return;
       }
 
@@ -203,7 +201,7 @@ export const useBookingStore = defineStore('booking', () => {
         if (rollbackIndex >= 0) {
           selectedSeats.value.splice(rollbackIndex, 1);
         }
-        alert(err.response?.data?.message || `Ghế ${seat.row}${seat.number} vừa bị người dùng khác giữ chỗ.`);
+        toast.error(err.response?.data?.message || `Ghế ${seat.row}${seat.number} vừa bị người dùng khác giữ chỗ.`, 'Không Thể Giữ Ghế');
       }
     }
   };

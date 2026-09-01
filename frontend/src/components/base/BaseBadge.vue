@@ -1,6 +1,6 @@
 <template>
   <span
-    class="inline-flex items-center gap-1.5 font-bold select-none whitespace-nowrap"
+    class="inline-flex items-center justify-center gap-1.5 font-bold select-none whitespace-nowrap leading-none shrink-0"
     :class="[
       sizeClasses[size],
       variantClasses[variant],
@@ -9,7 +9,7 @@
     ]"
   >
     <slot name="prefix" />
-    <span><slot /></span>
+    <slot />
     <slot name="suffix" />
   </span>
 </template>
@@ -31,8 +31,8 @@ withDefaults(defineProps<Props>(), {
 
 const sizeClasses = {
   xs: 'px-2 py-0.5 text-[10px]',
-  sm: 'px-2.5 py-1 text-xs',
-  md: 'px-3 py-1.5 text-xs md:text-sm',
+  sm: 'px-3 py-1.5 text-xs',
+  md: 'px-3.5 py-1.5 text-xs md:text-sm',
 };
 
 const variantClasses = {

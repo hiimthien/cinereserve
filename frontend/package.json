@@ -12,6 +12,7 @@
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/postcss": "^4.3.3",
     "@tailwindcss/vite": "^4.3.3",
+    "animejs": "^4.5.0",
     "autoprefixer": "^10.5.4",
     "axios": "^1.20.0",
     "canvas-confetti": "^1.9.4",
@@ -21,8 +22,10 @@
     "postcss": "^8.5.26",
     "pusher-js": "^8.6.0",
     "tailwindcss": "^4.3.3",
+    "vee-validate": "^4.15.1",
     "vue": "^3.5.41",
-    "vue-router": "^5.3.0"
+    "vue-router": "^5.3.0",
+    "yup": "^1.7.1"
   },
   "devDependencies": {
     "@types/canvas-confetti": "^1.9.0",

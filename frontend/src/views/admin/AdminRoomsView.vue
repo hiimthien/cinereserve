@@ -210,6 +210,9 @@
 import { ref, computed, onMounted } from 'vue';
 import { Save } from 'lucide-vue-next';
 import api from '../../services/api';
+import { useToast } from '../../composables/useToast';
+
+const toast = useToast();
 
 const cinemas = ref<any[]>([]);
 const selectedCinemaId = ref<number>(1);
@@ -319,10 +322,10 @@ const handleSaveMatrix = async () => {
       vip_rows: config.value.vip_rows,
       couple_rows: config.value.couple_rows,
     });
-    alert(res.data?.message || 'Cấu hình ma trận ghế thành công!');
+    toast.success(res.data?.message || 'Cấu hình ma trận ghế thành công!', 'Thành Công');
     fetchCinemas();
   } catch (err: any) {
-    alert(err.response?.data?.message || 'Không thể lưu ma trận ghế.');
+    toast.error(err.response?.data?.message || 'Không thể lưu ma trận ghế.', 'Lỗi Cấu Hình');
   } finally {
     isSaving.value = false;
   }

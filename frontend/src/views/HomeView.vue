@@ -3,17 +3,33 @@
     <!-- Global Header -->
     <Navbar />
 
-    <!-- 1. Hero Featured Movie Carousel -->
-    <section v-if="store.isLoading && !featuredMovie" class="relative w-full h-[520px] md:h-[620px] px-6 md:px-12 flex items-center">
-      <BaseSkeleton class="w-full h-full absolute inset-0" rounded="none" />
-      <div class="relative z-10 max-w-7xl mx-auto w-full space-y-4">
-        <div class="flex gap-2">
-          <BaseSkeleton class="w-24 h-6" rounded="full" />
-          <BaseSkeleton class="w-20 h-6" rounded="full" />
+    <!-- 1. Hero Featured Movie Skeleton (Matches Real Hero Layout 100%) -->
+    <section v-if="store.isLoading && !featuredMovie" class="relative w-full h-[520px] md:h-[620px] overflow-hidden bg-cinema-bg">
+      <div class="absolute inset-0 bg-slate-900/60"></div>
+      <div class="absolute inset-0 bg-gradient-to-t from-cinema-bg via-cinema-bg/40 to-transparent"></div>
+      <div class="absolute inset-0 bg-gradient-to-r from-cinema-bg via-cinema-bg/60 to-transparent"></div>
+
+      <div class="absolute inset-0 max-w-7xl mx-auto px-6 md:px-12 flex flex-col justify-center space-y-4">
+        <!-- Badges & Ratings Skeleton -->
+        <div class="flex items-center gap-3 flex-wrap">
+          <BaseSkeleton class="w-28 h-7" rounded="full" />
+          <BaseSkeleton class="w-24 h-7" rounded="full" />
+          <BaseSkeleton class="w-20 h-7" rounded="full" />
+          <BaseSkeleton class="w-20 h-7" rounded="full" />
         </div>
-        <BaseSkeleton class="w-3/4 max-w-xl h-14" rounded="2xl" />
-        <BaseSkeleton class="w-full max-w-lg h-16" rounded="xl" />
-        <div class="flex gap-3 pt-2">
+
+        <!-- Title Skeleton (Left aligned) -->
+        <BaseSkeleton class="w-full max-w-2xl h-12 sm:h-16" rounded="2xl" />
+
+        <!-- Description Skeleton -->
+        <div class="space-y-2 max-w-2xl">
+          <BaseSkeleton class="w-full h-4" rounded="md" />
+          <BaseSkeleton class="w-4/5 h-4" rounded="md" />
+          <BaseSkeleton class="w-3/5 h-4" rounded="md" />
+        </div>
+
+        <!-- Action Buttons Skeleton -->
+        <div class="flex flex-wrap items-center gap-4 pt-4">
           <BaseSkeleton class="w-36 h-12" rounded="2xl" />
           <BaseSkeleton class="w-36 h-12" rounded="2xl" />
         </div>
@@ -126,7 +142,9 @@
             <template #prefix>
               <Flame class="w-4 h-4 text-orange-400" />
             </template>
-            Đang Chiếu ({{ store.nowShowingMovies.length }})
+            <span>Đang Chiếu</span>
+            <span v-if="!store.isLoading" class="ml-1 opacity-90 font-mono">({{ store.nowShowingMovies.length }})</span>
+            <span v-else class="ml-1 opacity-60 font-mono animate-pulse">(...)</span>
           </BaseButton>
 
           <BaseButton 
@@ -137,7 +155,9 @@
             <template #prefix>
               <Sparkles class="w-4 h-4 text-amber-950" />
             </template>
-            Sắp Chiếu ({{ store.comingSoonMovies.length }})
+            <span>Sắp Chiếu</span>
+            <span v-if="!store.isLoading" class="ml-1 opacity-90 font-mono">({{ store.comingSoonMovies.length }})</span>
+            <span v-else class="ml-1 opacity-60 font-mono animate-pulse">(...)</span>
           </BaseButton>
         </div>
 
@@ -147,7 +167,7 @@
             <input 
               v-model="searchQuery" 
               type="text" 
-              placeholder="Tìm phim theo tên..." 
+              placeholder="Tìm phim theo tên, đạo diễn..." 
               class="bg-cinema-surface/90 border border-cinema-border rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cinema-accent w-48 sm:w-64"
             />
             <Search class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -163,6 +183,24 @@
           </router-link>
         </div>
 
+      </div>
+
+      <!-- Genre Filter Ghost Pills -->
+      <div class="flex items-center gap-1.5 overflow-x-auto pb-2 pt-1 scrollbar-none select-none -mt-4">
+        <button
+          v-for="g in CURATED_GENRES"
+          :key="g.id"
+          @click="selectedGenre = g.id"
+          class="px-3 py-1.5 rounded-full text-xs transition-all duration-200 shrink-0 cursor-pointer flex items-center gap-1.5 border"
+          :class="[
+            selectedGenre === g.id
+              ? 'bg-white/20 text-white border-white/40 font-bold shadow-sm backdrop-blur-md scale-105'
+              : 'bg-white/5 text-slate-400 border-white/5 hover:border-white/20 hover:text-slate-200 hover:bg-white/10 font-medium'
+          ]"
+        >
+          <component :is="genreIcons[g.iconName]" class="w-3.5 h-3.5 shrink-0 opacity-90" />
+          <span>{{ g.label }}</span>
+        </button>
       </div>
 
       <!-- Loading Skeleton Grid Animation -->
@@ -219,17 +257,39 @@ import {
   Sparkles, 
   Search, 
   MapPin, 
-  Film 
+  Film,
+  Clapperboard,
+  Rocket,
+  Ghost,
+  Smile,
+  Compass,
+  Theater,
+  Heart,
+  Users
 } from 'lucide-vue-next';
 import { useBookingStore } from '../stores/bookingStore';
 import type { Movie } from '../types';
-import Navbar from '../components/Navbar.vue';
-import MovieCard from '../components/MovieCard.vue';
-import TrailerModal from '../components/TrailerModal.vue';
-import Footer from '../components/Footer.vue';
+import Navbar from '../components/common/Navbar.vue';
+import MovieCard from '../components/movie/MovieCard.vue';
+import TrailerModal from '../components/movie/TrailerModal.vue';
+import Footer from '../components/common/Footer.vue';
 import BaseButton from '../components/base/BaseButton.vue';
 import BaseBadge from '../components/base/BaseBadge.vue';
 import BaseSkeleton from '../components/base/BaseSkeleton.vue';
+import { CURATED_GENRES } from '../constants';
+
+const genreIcons: Record<string, any> = {
+  Clapperboard,
+  Flame,
+  Sparkles,
+  Rocket,
+  Ghost,
+  Smile,
+  Compass,
+  Theater,
+  Heart,
+  Users,
+};
 
 const router = useRouter();
 const store = useBookingStore();
@@ -237,6 +297,7 @@ const store = useBookingStore();
 const activeTab = ref<'now_showing' | 'coming_soon'>('now_showing');
 const activeHeroIndex = ref(0);
 const searchQuery = ref('');
+const selectedGenre = ref('all');
 
 const isTrailerOpen = ref(false);
 const selectedTrailerUrl = ref('');
@@ -256,13 +317,30 @@ const filteredMovies = computed(() => {
     ? store.nowShowingMovies 
     : store.comingSoonMovies;
 
-  if (!searchQuery.value.trim()) return list;
+  const currentGenreConfig = CURATED_GENRES.find(g => g.id === selectedGenre.value);
 
-  const q = searchQuery.value.toLowerCase();
-  return list.filter(m => 
-    m.title.toLowerCase().includes(q) || 
-    (m.original_title && m.original_title.toLowerCase().includes(q))
-  );
+  return list.filter(movie => {
+    // 1. Khớp từ khóa tìm kiếm
+    let matchesSearch = true;
+    if (searchQuery.value.trim()) {
+      const q = searchQuery.value.toLowerCase();
+      matchesSearch = movie.title.toLowerCase().includes(q) || 
+        Boolean(movie.original_title?.toLowerCase().includes(q)) ||
+        Boolean(movie.director?.toLowerCase().includes(q));
+    }
+
+    // 2. Khớp thể loại phim theo danh mục chuẩn hóa
+    let matchesGenre = true;
+    if (currentGenreConfig && currentGenreConfig.id !== 'all') {
+      const keywords = currentGenreConfig.keywords;
+      matchesGenre = Array.isArray(movie.genre) && movie.genre.some(g => {
+        const gl = g.toLowerCase();
+        return keywords.some(kw => gl.includes(kw) || kw.includes(gl));
+      });
+    }
+
+    return matchesSearch && matchesGenre;
+  });
 });
 
 const goToMovie = (movie: Movie) => {

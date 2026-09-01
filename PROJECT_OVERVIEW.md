@@ -127,8 +127,10 @@ npm run dev
 - [x] Tái cấu trúc chuẩn Layered Architecture: Form Requests, API Resources, Atomic Base Components.
 - [x] Chuẩn hóa 100% tỉ giá trong cơ sở dữ liệu sang VNĐ (`85.000 đ - 295.000 đ`).
 
-### ⏳ Kế Hoạch Tiếp Tục (Roadmap):
+### ⏳ Kế Hoạch Tiếp Tục (Roadmap & Refactoring):
+- [ ] **Tái Cấu Trúc Toàn Diện Backend & Frontend:** Chi tiết kế hoạch tại [REFACTORING_ROADMAP.md](file:///d:/PJ/cinereserve/REFACTORING_ROADMAP.md) (Chuyển sang Thin Controllers, Service-Repository Pattern, Custom Composables và tách nhỏ sub-components).
 - [ ] **Tính năng Quét mã QR Soát vé (Staff QR Scanner):** Trang `/admin/scanner` mở Camera trên thiết bị di động quét trực tiếp mã QR trên vé của khách để Check-in đổi trạng thái sang `checked_in`.
 - [ ] **Tích hợp Cổng Thanh Toán Thực Tế (VNPay Sandbox / MoMo Sandbox Webhook Idempotency):** Xử lý IPN Webhook tự động cập nhật đơn vé thành công khi khách thanh toán qua QR Ngân hàng / MoMo.
 - [ ] **Viết Bộ Test Tự Động (Pest / PHPUnit):** Viết test case Race Condition khi 10 request đồng thời giữ cùng 1 ghế qua Redis Lock.
 - [ ] **Quay Video / GIF Demo & Cập nhật README:** Chuẩn bị tư liệu hoàn chỉnh để bổ sung vào CV xin việc và Showcase LinkedIn.
+

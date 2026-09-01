@@ -68,4 +68,14 @@ class Voucher extends Model
         // Fixed amount discount
         return min($this->discount_value, $applicableBase);
     }
+
+    public function isExpired(): bool
+    {
+        return $this->expires_at !== null && $this->expires_at->isPast();
+    }
+
+    public function isExhausted(): bool
+    {
+        return $this->usage_limit > 0 && $this->used_count >= $this->usage_limit;
+    }
 }

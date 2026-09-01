@@ -29,6 +29,7 @@ class AdminMovieRequest extends FormRequest
             'backdrop_url' => ['nullable', 'string'],
             'trailer_url' => ['nullable', 'string'],
             'genres' => ['nullable', 'array'],
+            'age_rating' => ['nullable', 'string', 'in:P,K,T13,T16,T18,C'],
             'status' => [$isPost ? 'required' : 'sometimes', 'in:now_showing,coming_soon,early_premiere'],
         ];
     }

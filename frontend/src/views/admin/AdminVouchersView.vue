@@ -222,6 +222,9 @@ import api from '../../services/api';
 import BaseModal from '../../components/base/BaseModal.vue';
 import BaseInput from '../../components/base/BaseInput.vue';
 import BaseButton from '../../components/base/BaseButton.vue';
+import { useToast } from '../../composables/useToast';
+
+const toast = useToast();
 
 const vouchers = ref<any[]>([]);
 const isLoading = ref(false);
@@ -313,27 +316,30 @@ const handleSubmit = async () => {
   try {
     if (isEditing.value && editingId.value) {
       await api.put(`/admin/vouchers/${editingId.value}`, form.value);
+      toast.success(`Cập nhật voucher ${form.value.code} thành công!`, 'Thành Công');
     } else {
       await api.post('/admin/vouchers', form.value);
+      toast.success(`Tạo mới voucher ${form.value.code} thành công!`, 'Thành Công');
     }
     isModalOpen.value = false;
     await fetchVouchers();
   } catch (e: any) {
-    alert(e.response?.data?.message || 'Có lỗi xảy ra khi lưu voucher.');
+    toast.error(e.response?.data?.message || 'Có lỗi xảy ra khi lưu voucher.', 'Lỗi Lưu Voucher');
   } finally {
     isSubmitting.value = false;
   }
 };
 
-const handleDelete = async (id: number) => {
-  if (!confirm('Bạn có chắc chắn muốn xóa voucher này không?')) return;
-  try {
-    await api.delete(`/admin/vouchers/${id}`);
-    await fetchVouchers();
-  } catch (e: any) {
-    alert(e.response?.data?.message || 'Có lỗi xảy ra khi xóa voucher.');
-  }
-};
+  const handleDelete = async (id: number) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa voucher này không?')) return;
+    try {
+      await api.delete(`/admin/vouchers/${id}`);
+      toast.success('Đã xóa voucher khỏi hệ thống!', 'Đã Xóa');
+      await fetchVouchers();
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || 'Có lỗi xảy ra khi xóa voucher.', 'Lỗi Xóa');
+    }
+  };
 
 onMounted(() => {
   fetchVouchers();

@@ -27,6 +27,11 @@ class Movie extends Model
         return $this->hasMany(Showtime::class);
     }
 
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(MovieReview::class)->orderBy('id', 'desc');
+    }
+
     /**
      * Scope đa năng xử lý tất cả bộ lọc (Chuẩn Clean Laravel)
      */

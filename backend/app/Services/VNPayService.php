@@ -145,14 +145,14 @@ class VNPayService
                 $booking->save();
             });
 
-            // Gửi mail vé điện tử
+            // Gửi mail vé điện tử qua Queue Job (Background Worker)
             try {
                 $booking->load(['showtime.movie', 'showtime.cinema', 'showtime.room', 'bookingSeats.seat']);
                 if (!empty($booking->user_email)) {
-                    Mail::to($booking->user_email)->send(new TicketConfirmationMail($booking));
+                    \App\Jobs\SendTicketEmailJob::dispatch($booking);
                 }
             } catch (Exception $e) {
-                Log::error('Lỗi gửi mail sau khi VNPay IPN: ' . $e->getMessage());
+                Log::error('Lỗi dispatch Queue Job gửi vé sau khi VNPay IPN: ' . $e->getMessage());
             }
 
             return [

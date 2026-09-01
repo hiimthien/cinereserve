@@ -6,46 +6,22 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\BookingResource;
-use App\Models\Booking;
-use App\Models\BookingSeat;
-use App\Models\Seat;
+use App\Services\AdminBookingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AdminBookingController extends Controller
 {
+    public function __construct(
+        protected AdminBookingService $adminBookingService
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
-        $query = Booking::with([
-            'showtime.movie',
-            'showtime.cinema',
-            'showtime.room',
-            'bookingSeats.seat',
-            'payment',
-        ]);
-
-        if ($request->filled('status') && $request->input('status') !== 'all') {
-            $query->where('status', $request->input('status'));
-        }
-
-        if ($request->filled('cinema_id') && $request->input('cinema_id') !== 'all') {
-            $cinemaId = (int) $request->input('cinema_id');
-            $query->whereHas('showtime', fn($q) => $q->where('cinema_id', $cinemaId));
-        }
-
-        if ($request->filled('search')) {
-            $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('booking_code', 'like', "%{$search}%")
-                  ->orWhere('user_name', 'like', "%{$search}%")
-                  ->orWhere('user_email', 'like', "%{$search}%")
-                  ->orWhere('user_phone', 'like', "%{$search}%")
-                  ->orWhereHas('showtime.movie', fn($mq) => $mq->where('title', 'like', "%{$search}%"));
-            });
-        }
-
+        $filters = $request->only(['status', 'cinema_id', 'search']);
         $perPage = (int) $request->input('per_page', 10);
-        $paginated = $query->orderBy('id', 'desc')->paginate($perPage);
+
+        $paginated = $this->adminBookingService->getPaginatedBookings($filters, $perPage);
 
         return response()->json([
             'success' => true,
@@ -61,11 +37,7 @@ class AdminBookingController extends Controller
 
     public function checkIn(int $id): JsonResponse
     {
-        $booking = Booking::findOrFail($id);
-        $booking->update([
-            'status' => 'checked_in',
-            'checked_in_at' => now(),
-        ]);
+        $booking = $this->adminBookingService->checkInTicket($id);
 
         return response()->json([
             'success' => true,
@@ -76,12 +48,12 @@ class AdminBookingController extends Controller
 
     public function cancel(int $id): JsonResponse
     {
-        $booking = Booking::findOrFail($id);
-        $booking->update(['status' => 'cancelled']);
+        $booking = $this->adminBookingService->cancelBooking($id);
 
         return response()->json([
             'success' => true,
             'message' => "Đã hủy đơn vé #{$booking->booking_code}!",
+            'data' => new BookingResource($booking),
         ]);
     }
 }

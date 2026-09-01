@@ -1,26 +1,32 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
+import { useToast } from '../composables/useToast';
+
+// Eager load only HomeView for instant LCP (Largest Contentful Paint)
 import HomeView from '../views/HomeView.vue';
-import NowShowingView from '../views/NowShowingView.vue';
-import ComingSoonView from '../views/ComingSoonView.vue';
-import MovieDetailView from '../views/MovieDetailView.vue';
-import CinemasView from '../views/CinemasView.vue';
-import SeatSelectionView from '../views/SeatSelectionView.vue';
-import CheckoutView from '../views/CheckoutView.vue';
-import TicketConfirmationView from '../views/TicketConfirmationView.vue';
-import MyTicketsView from '../views/MyTicketsView.vue';
-import StaffScannerView from '../views/StaffScannerView.vue';
 
-// Admin views
-import AdminLayout from '../views/admin/AdminLayout.vue';
-import AdminDashboardView from '../views/admin/AdminDashboardView.vue';
-import AdminMoviesView from '../views/admin/AdminMoviesView.vue';
-import AdminShowtimesView from '../views/admin/AdminShowtimesView.vue';
-import AdminRoomsView from '../views/admin/AdminRoomsView.vue';
-import AdminSnacksView from '../views/admin/AdminSnacksView.vue';
-import AdminVouchersView from '../views/admin/AdminVouchersView.vue';
-import AdminBookingsView from '../views/admin/AdminBookingsView.vue';
+// Dynamic Lazy Loading for all secondary and admin routes (Code Splitting)
+const NowShowingView = () => import('../views/NowShowingView.vue');
+const ComingSoonView = () => import('../views/ComingSoonView.vue');
+const MovieDetailView = () => import('../views/MovieDetailView.vue');
+const CinemasView = () => import('../views/CinemasView.vue');
+const SeatSelectionView = () => import('../views/SeatSelectionView.vue');
+const CheckoutView = () => import('../views/CheckoutView.vue');
+const TicketConfirmationView = () => import('../views/TicketConfirmationView.vue');
+const MyTicketsView = () => import('../views/MyTicketsView.vue');
+const StaffScannerView = () => import('../views/StaffScannerView.vue');
 
+// Admin views (Lazy loaded in a separate admin bundle)
+const AdminLayout = () => import('../views/admin/AdminLayout.vue');
+const AdminDashboardView = () => import('../views/admin/AdminDashboardView.vue');
+const AdminMoviesView = () => import('../views/admin/AdminMoviesView.vue');
+const AdminShowtimesView = () => import('../views/admin/AdminShowtimesView.vue');
+const AdminRoomsView = () => import('../views/admin/AdminRoomsView.vue');
+const AdminCinemasView = () => import('../views/admin/AdminCinemasView.vue');
+const AdminUsersView = () => import('../views/admin/AdminUsersView.vue');
+const AdminSnacksView = () => import('../views/admin/AdminSnacksView.vue');
+const AdminVouchersView = () => import('../views/admin/AdminVouchersView.vue');
+const AdminBookingsView = () => import('../views/admin/AdminBookingsView.vue');
 
 const routes = [
   {
@@ -57,18 +63,16 @@ const routes = [
     meta: { title: 'Chi Tiết Phim & Suất Chiếu | CineReserve' },
   },
   {
-    // Clean SEO & Semantic Booking URL
     path: '/booking/:slug/:showtimeId?',
     name: 'seat-selection',
     component: SeatSelectionView,
     props: (route: any) => ({
       slug: route.params.slug,
-      showtimeId: route.params.showtimeId || route.query.showtime || route.query.st
+      showtimeId: route.params.showtimeId || route.query.showtime || route.query.st,
     }),
     meta: { title: 'Chọn Ghế Ngồi Trực Tiếp | CineReserve' },
   },
   {
-    // Legacy alias
     path: '/showtime/:showtimeId/seats',
     name: 'legacy-seat-selection',
     component: SeatSelectionView,
@@ -99,7 +103,7 @@ const routes = [
     component: StaffScannerView,
     meta: { 
       title: 'Máy Quét QR Soát Vé Nhân Viên | CineReserve Staff',
-      requiresRole: 'staff' 
+      requiresRole: 'staff',
     },
   },
 
@@ -128,6 +132,12 @@ const routes = [
         meta: { title: 'Quản Lý Lịch & Suất Chiếu | CineAdmin', requiresRole: 'admin' },
       },
       {
+        path: 'cinemas',
+        name: 'admin-cinemas',
+        component: AdminCinemasView,
+        meta: { title: 'Quản Lý Cụm Rạp Chiếu | CineAdmin', requiresRole: 'admin' },
+      },
+      {
         path: 'rooms',
         name: 'admin-rooms',
         component: AdminRoomsView,
@@ -151,9 +161,14 @@ const routes = [
         component: AdminBookingsView,
         meta: { title: 'Quản Lý Toàn Bộ Đơn Vé | CineAdmin', requiresRole: 'admin' },
       },
+      {
+        path: 'users',
+        name: 'admin-users',
+        component: AdminUsersView,
+        meta: { title: 'Quản Lý Người Dùng & Phân Quyền | CineAdmin', requiresRole: 'admin' },
+      },
     ],
   },
-
 ];
 
 const router = createRouter({
@@ -161,23 +176,24 @@ const router = createRouter({
   routes,
   scrollBehavior() {
     return { top: 0 };
-  }
+  },
 });
 
 // RBAC Role-Based Navigation Guard
 router.beforeEach((to, _from, next) => {
   const authStore = useAuthStore();
+  const toast = useToast();
   const requiresRole = to.meta?.requiresRole;
 
   if (requiresRole === 'admin') {
     if (!authStore.isAdmin) {
-      alert('⚠️ Bạn không có quyền truy cập khu vực Quản trị viên (Admin). Vui lòng đăng nhập tài khoản có quyền Admin.');
+      toast.warning('Bạn không có quyền truy cập khu vực Quản trị viên (Admin).', 'Yêu Cầu Quyền Admin');
       authStore.openAuth('login');
       return next({ name: 'home' });
     }
   } else if (requiresRole === 'staff') {
     if (!authStore.isStaff) {
-      alert('⚠️ Bạn không có quyền truy cập khu vực Soát vé Nhân viên (Staff/Admin).');
+      toast.warning('Bạn không có quyền truy cập khu vực Soát vé Nhân viên.', 'Yêu Cầu Quyền Staff');
       authStore.openAuth('login');
       return next({ name: 'home' });
     }

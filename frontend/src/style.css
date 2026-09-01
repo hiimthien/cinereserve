@@ -59,6 +59,24 @@
   ::-webkit-scrollbar-thumb:hover {
     background: #E11D48;
   }
+
+  /* Custom Bright Neon Calendar & Clock Picker Icons for Dark Theme */
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.9) sepia(1) saturate(4) hue-rotate(330deg);
+    cursor: pointer;
+    opacity: 0.9;
+    padding: 2px;
+    border-radius: 4px;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator:hover,
+  input[type="time"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+    transform: scale(1.15);
+  }
 }
 
 /* Custom Scrollbar Utilities */

@@ -224,6 +224,9 @@ import api from '../../services/api';
 import BaseModal from '../../components/base/BaseModal.vue';
 import BaseInput from '../../components/base/BaseInput.vue';
 import BaseButton from '../../components/base/BaseButton.vue';
+import { useToast } from '../../composables/useToast';
+
+const toast = useToast();
 
 const snacks = ref<any[]>([]);
 const isLoading = ref(false);
@@ -334,13 +337,15 @@ const handleSubmit = async () => {
   try {
     if (isEditing.value && editingId.value) {
       await api.put(`/admin/snacks/${editingId.value}`, form.value);
+      toast.success(`Cập nhật món "${form.value.name}" thành công!`, 'Thành Công');
     } else {
       await api.post('/admin/snacks', form.value);
+      toast.success(`Tạo mới món "${form.value.name}" thành công!`, 'Thành Công');
     }
     isModalOpen.value = false;
     await fetchSnacks();
   } catch (e: any) {
-    alert(e.response?.data?.message || 'Có lỗi xảy ra khi lưu món ăn.');
+    toast.error(e.response?.data?.message || 'Có lỗi xảy ra khi lưu món ăn.', 'Lỗi Lưu Món');
   } finally {
     isSubmitting.value = false;
   }
@@ -350,9 +355,10 @@ const handleDelete = async (id: number) => {
   if (!confirm('Bạn có chắc chắn muốn xóa món này không?')) return;
   try {
     await api.delete(`/admin/snacks/${id}`);
+    toast.success('Đã xóa món khỏi thực đơn!', 'Đã Xóa');
     await fetchSnacks();
   } catch (e: any) {
-    alert(e.response?.data?.message || 'Có lỗi xảy ra khi xóa món.');
+    toast.error(e.response?.data?.message || 'Có lỗi xảy ra khi xóa món.', 'Lỗi Xóa');
   }
 };
 

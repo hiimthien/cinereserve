@@ -55,6 +55,7 @@ export interface Movie {
   backdrop_url: string;
   trailer_url: string;
   rating: number; // e.g. 8.5
+  age_rating?: 'P' | 'K' | 'T13' | 'T16' | 'T18' | string;
   genre: string[];
   description: string;
   director: string;

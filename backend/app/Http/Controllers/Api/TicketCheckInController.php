@@ -57,7 +57,35 @@ class TicketCheckInController extends Controller
             ], 422);
         }
 
-        // 2. Chống quét vé 2 lần (Anti-fraud / Double Check-in Protection)
+        // 2. Kiểm tra vé quá hạn suất chiếu (Hết giờ vào rạp / Quá 45 phút kể từ giờ bắt đầu)
+        if ($booking->showtime) {
+            $showDate = Carbon::parse($booking->showtime->show_date)->toDateString();
+            $today = Carbon::today()->toDateString();
+            
+            $isPastDate = $showDate < $today;
+            $isPastTimeToday = false;
+            if ($showDate === $today && !empty($booking->showtime->start_time)) {
+                $timeParts = explode(':', $booking->showtime->start_time);
+                if (count($timeParts) >= 2) {
+                    $showtimeStart = Carbon::today()->setHours((int)$timeParts[0])->setMinutes((int)$timeParts[1]);
+                    if (Carbon::now()->gt($showtimeStart->copy()->addMinutes(45))) {
+                        $isPastTimeToday = true;
+                    }
+                }
+            }
+
+            if ($isPastDate || $isPastTimeToday) {
+                $formattedDate = Carbon::parse($booking->showtime->show_date)->format('d/m/Y');
+                return response()->json([
+                    'success' => false,
+                    'status' => 'EXPIRED',
+                    'message' => "VÉ QUÁ HẠN: Suất chiếu này đã diễn ra ({$booking->showtime->start_time} ngày {$formattedDate}). Vé không còn hiệu lực để vào rạp.",
+                    'data' => $this->formatTicketData($booking),
+                ], 422);
+            }
+        }
+
+        // 3. Chống quét vé 2 lần (Anti-fraud / Double Check-in Protection)
         if ($booking->check_in_status === 'checked_in') {
             $checkInTime = $booking->checked_in_at ? Carbon::parse($booking->checked_in_at)->format('H:i:s - d/m/Y') : 'trước đó';
             $staff = $booking->checked_in_by ?: 'Nhân viên cổng';
@@ -132,6 +160,7 @@ class TicketCheckInController extends Controller
             'user_email' => $booking->user_email,
             'movie_title' => $booking->showtime?->movie?->title ?? 'Phim',
             'movie_poster' => $booking->showtime?->movie?->poster_url,
+            'age_rating' => $booking->showtime?->movie?->age_rating ?? 'T18',
             'cinema_name' => $booking->showtime?->cinema?->name ?? 'CGV Cinema',
             'room_name' => $booking->showtime?->room?->name ?? 'Phòng chiếu',
             'show_date' => $booking->showtime?->date ? Carbon::parse($booking->showtime->date)->format('d/m/Y') : '',

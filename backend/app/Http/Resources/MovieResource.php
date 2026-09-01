@@ -21,15 +21,19 @@ class MovieResource extends JsonResource
             'duration_minutes' => $this->duration ?? $this->duration_minutes ?? 120,
             'release_date' => $this->release_date?->format('Y-m-d') ?? $this->release_date,
             'rating' => (float) ($this->rating ?? 8.5),
+            'age_rating' => $this->age_rating ?? 'T18',
             'poster_url' => $this->poster_url,
             'backdrop_url' => $this->backdrop_url,
             'trailer_url' => $this->trailer_url,
-            'genres' => $this->genres,
+            'genre' => $this->genre ?? $this->genres ?? [],
+            'genres' => $this->genre ?? $this->genres ?? [],
             'director' => $this->director,
             'cast' => $this->cast,
             'status' => $this->status ?? 'now_showing',
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
+            'showtimes' => ShowtimeResource::collection($this->whenLoaded('showtimes')),
+            'reviews' => ReviewResource::collection($this->whenLoaded('reviews')),
+            'created_at' => $this->created_at?->toIso8601String(),
+            'updated_at' => $this->updated_at?->toIso8601String(),
         ];
     }
 }

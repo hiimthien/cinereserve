@@ -20,6 +20,21 @@
           <div class="space-y-4 max-w-4xl">
             <!-- Badges & Ratings -->
             <div class="flex flex-wrap items-center gap-2.5">
+              <!-- Age Rating Badge -->
+              <span 
+                class="px-2.5 py-1 rounded-full text-xs font-black tracking-wider shadow-md uppercase"
+                :class="[
+                  ageInfo.code === 'T18' ? 'bg-rose-600 text-white shadow-rose-600/30' :
+                  ageInfo.code === 'T16' ? 'bg-amber-600 text-white shadow-amber-600/30' :
+                  ageInfo.code === 'T13' ? 'bg-cyan-600 text-white shadow-cyan-600/30' :
+                  ageInfo.code === 'K' ? 'bg-amber-400 text-slate-950 font-black' :
+                  'bg-emerald-600 text-white shadow-emerald-600/30'
+                ]"
+                :title="ageInfo.label"
+              >
+                {{ ageInfo.shortLabel }}
+              </span>
+
               <span class="px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-bold flex items-center gap-1">
                 <Star class="w-3.5 h-3.5 fill-amber-400" />
                 <span>{{ movie?.rating || '8.5' }} TMDb</span>
@@ -43,6 +58,15 @@
             <h1 class="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
               {{ movie?.title }}
             </h1>
+
+            <!-- Age Advisory Banner -->
+            <div 
+              v-if="ageInfo.isRestricted"
+              class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-semibold"
+            >
+              <AlertCircle class="w-4 h-4 text-rose-400 shrink-0" />
+              <span>{{ ageInfo.description }}</span>
+            </div>
 
             <!-- Description -->
             <p class="text-xs sm:text-sm text-cinema-muted line-clamp-3 leading-relaxed max-w-3xl">
@@ -133,21 +157,35 @@
                   v-for="st in group.showtimes" 
                   :key="st.id"
                   @click="handleSelectShowtime(st)"
-                  class="group relative flex flex-col items-center justify-center p-3.5 rounded-2xl border transition-all duration-300 cursor-pointer"
+                  :disabled="isShowtimeExpired(st, selectedDate)"
+                  class="group relative flex flex-col items-center justify-center p-3.5 rounded-2xl border transition-all duration-300"
                   :class="[
-                    store.selectedShowtime?.id === st.id
-                      ? 'bg-cinema-accent text-white shadow-glow-accent border-cinema-accent'
-                      : 'bg-slate-900/80 hover:bg-slate-800 border-cinema-border hover:border-slate-500 text-slate-200'
+                    isShowtimeExpired(st, selectedDate)
+                      ? 'opacity-35 grayscale bg-slate-950/40 border-slate-800 cursor-not-allowed text-slate-500'
+                      : store.selectedShowtime?.id === st.id
+                        ? 'bg-cinema-accent text-white shadow-glow-accent border-cinema-accent cursor-pointer'
+                        : 'bg-slate-900/80 hover:bg-slate-800 border-cinema-border hover:border-slate-500 text-slate-200 cursor-pointer'
                   ]"
                 >
-                  <span class="text-lg font-black group-hover:text-amber-400 transition-colors font-mono">
+                  <!-- Dynamic Pricing Badge (Happy Wednesday / Weekend Surge) -->
+                  <ShowtimePricingBadge 
+                    v-if="!isShowtimeExpired(st, selectedDate)" 
+                    :showtime="st" 
+                    :targetDate="selectedDate" 
+                    class="mb-1" 
+                  />
+
+                  <span class="text-lg font-black font-mono transition-colors" :class="isShowtimeExpired(st, selectedDate) ? 'line-through text-slate-600' : 'group-hover:text-amber-400'">
                     {{ st.start_time }}
                   </span>
-                  <span class="text-[11px] text-slate-400 mt-0.5 font-semibold">
-                    {{ st.room?.room_type || st.room?.name || '2D Standard' }}
+                  <span class="text-[11px] mt-0.5 font-semibold" :class="isShowtimeExpired(st, selectedDate) ? 'text-slate-600' : 'text-slate-400'">
+                    {{ isShowtimeExpired(st, selectedDate) ? 'Đã qua giờ' : (st.room?.room_type || st.room?.name || '2D Standard') }}
                   </span>
-                  <span class="mt-1 text-[10px] font-bold text-emerald-400 px-2 py-0.5 rounded-full bg-emerald-500/10 font-mono">
-                    {{ formatVndPrice(st.base_price) }}
+                  <span 
+                    class="mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full font-mono"
+                    :class="isShowtimeExpired(st, selectedDate) ? 'bg-slate-800/40 text-slate-600' : 'bg-emerald-500/10 text-emerald-400'"
+                  >
+                    {{ isShowtimeExpired(st, selectedDate) ? 'Hết Hạn' : formatVndPrice(getDynamicPricing(st, selectedDate).priceStandard) }}
                   </span>
                 </button>
               </div>
@@ -164,6 +202,15 @@
           </div>
         </div>
 
+      </section>
+
+      <!-- 3. Movie Reviews & Star Ratings Community Section -->
+      <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <MovieReviewsSection 
+          :movieId="movie?.id" 
+          :currentRating="movie?.rating"
+          @review-added="handleReviewAdded"
+        />
       </section>
     </main>
 
@@ -183,24 +230,39 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Star, Clock, Play, Film } from 'lucide-vue-next';
+import { Star, Clock, Play, Film, AlertCircle } from 'lucide-vue-next';
 import { useBookingStore } from '../stores/bookingStore';
+import { useToast } from '../composables/useToast';
+import { isShowtimeExpired, getAgeRatingInfo } from '../utils/formatters';
+import { useDynamicPricing } from '../composables/useDynamicPricing';
 import api from '../services/api';
-import Navbar from '../components/Navbar.vue';
-import DateSlider from '../components/DateSlider.vue';
-import TrailerModal from '../components/TrailerModal.vue';
-import Footer from '../components/Footer.vue';
+import Navbar from '../components/common/Navbar.vue';
+import DateSlider from '../components/common/DateSlider.vue';
+import TrailerModal from '../components/movie/TrailerModal.vue';
+import MovieReviewsSection from '../components/movie/MovieReviewsSection.vue';
+import ShowtimePricingBadge from '../components/showtime/ShowtimePricingBadge.vue';
+import Footer from '../components/common/Footer.vue';
 import type { Showtime } from '../types';
 
 const route = useRoute();
 const router = useRouter();
 const store = useBookingStore();
+const toast = useToast();
+const { getDynamicPricing } = useDynamicPricing();
 
 const isTrailerOpen = ref(false);
 const selectedCity = ref('Tất cả');
 const selectedDate = ref(new Date().toISOString().split('T')[0]);
 
+const handleReviewAdded = async () => {
+  await loadMovieDetails();
+};
+
 const movie = computed(() => store.currentMovie);
+
+const ageInfo = computed(() => {
+  return getAgeRatingInfo(movie.value?.age_rating || 'T18');
+});
 
 const availableCities = ['Tất cả', 'Hồ Chí Minh', 'Hà Nội', 'Đà Nẵng', 'Cần Thơ', 'Hải Phòng', 'Lâm Đồng'];
 
@@ -273,14 +335,19 @@ const openTrailer = () => {
   }
 };
 
-const handleSelectShowtime = async (st: Showtime) => {
-  await store.selectShowtime(st);
+const handleSelectShowtime = (st: Showtime) => {
+  if (isShowtimeExpired(st, selectedDate.value)) {
+    toast.warning('Suất chiếu này đã bắt đầu hoặc kết thúc. Vui lòng chọn suất chiếu kế tiếp!', 'Suất Chiếu Quá Hạn');
+    return;
+  }
+  store.selectedShowtime = st;
   store.selectedDate = selectedDate.value;
+  const currentSlug = store.currentMovie?.slug || (route.params.slug as string) || 'spider-man-across-the-spider-verse';
   router.push({ 
     name: 'seat-selection', 
     params: { 
-      slug: store.currentMovie?.slug || 'phim',
-      showtimeId: st.id 
+      slug: currentSlug,
+      showtimeId: String(st.id) 
     } 
   });
 };
@@ -305,6 +372,7 @@ const loadMovieDetails = async () => {
 };
 
 onMounted(async () => {
+  store.selectedShowtime = null;
   if (store.movies.length === 0) {
     await store.fetchMovies();
   }

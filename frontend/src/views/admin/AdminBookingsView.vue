@@ -184,6 +184,9 @@ import BaseSelect from '../../components/base/BaseSelect.vue';
 import BaseBadge from '../../components/base/BaseBadge.vue';
 import BaseButton from '../../components/base/BaseButton.vue';
 import BasePagination from '../../components/base/BasePagination.vue';
+import { useToast } from '../../composables/useToast';
+
+const toast = useToast();
 
 const bookings = ref<any[]>([]);
 const cinemas = ref<any[]>([]);
@@ -311,9 +314,10 @@ const fetchBookings = async () => {
 const handleCheckIn = async (id: number) => {
   try {
     await api.post(`/admin/bookings/${id}/check-in`);
+    toast.success('Soát vé & Check-in thành công!', 'Đã Check-in');
     await fetchBookings();
   } catch (e: any) {
-    alert(e.response?.data?.message || 'Không thể check-in vé.');
+    toast.error(e.response?.data?.message || 'Không thể check-in vé.', 'Lỗi Check-in');
   }
 };
 
@@ -321,9 +325,10 @@ const handleCancel = async (id: number) => {
   if (!confirm('Bạn có chắc chắn muốn hủy đơn vé này không?')) return;
   try {
     await api.delete(`/admin/bookings/${id}/cancel`);
+    toast.success('Đã hủy đơn đặt vé thành công!', 'Đã Hủy');
     await fetchBookings();
   } catch (e: any) {
-    alert(e.response?.data?.message || 'Không thể hủy vé.');
+    toast.error(e.response?.data?.message || 'Không thể hủy vé.', 'Lỗi Hủy Vé');
   }
 };
 

@@ -23,11 +23,12 @@ class ShowtimeResource extends JsonResource
             'base_price' => (float) $this->base_price,
             'format' => $this->format ?? '2D Standard',
             'status' => $this->status ?? 'scheduled',
+            'dynamic_pricing' => app(\App\Services\PricingService::class)->calculateDynamicPricing($this->resource),
             'movie' => new MovieResource($this->whenLoaded('movie')),
             'cinema' => $this->whenLoaded('cinema'),
             'room' => $this->whenLoaded('room'),
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
+            'created_at' => $this->created_at?->toIso8601String(),
+            'updated_at' => $this->updated_at?->toIso8601String(),
         ];
     }
 }

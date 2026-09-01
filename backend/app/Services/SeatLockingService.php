@@ -204,20 +204,12 @@ class SeatLockingService
                 }
             }
 
-            // Calculate exact total price from seats, combos and discount
+            // Calculate exact total price from seats (with Dynamic Pricing Engine)
+            $pricingService = app(PricingService::class);
             $seatsTotal = 0;
             $seatsList = Seat::whereIn('id', $seatIds)->get();
             foreach ($seatsList as $seat) {
-                $p = (float) ($showtime->base_price ?: 95000);
-                if ($seat->type === 'vip') {
-                    $p = isset($showtime->price_vip) && (float)$showtime->price_vip > 0 
-                        ? (float) $showtime->price_vip 
-                        : ($p + 15000);
-                } elseif ($seat->type === 'couple') {
-                    $p = isset($showtime->price_couple) && (float)$showtime->price_couple > 0 
-                        ? (float) $showtime->price_couple 
-                        : ($p * 2);
-                }
+                $p = $pricingService->getSeatPrice($showtime, $seat);
                 $seatsTotal += $p;
             }
 
@@ -330,18 +322,67 @@ class SeatLockingService
             $booking->load(['showtime.movie', 'showtime.cinema', 'showtime.room', 'bookingSeats.seat']);
             $booking->setRelation('seats', collect($seatsInfo));
 
-            // Gửi email vé điện tử kèm mã QR tới khách hàng
+            // Gửi email vé điện tử qua Queue Job (Background Worker)
             try {
                 if (!empty($booking->user_email)) {
-                    \Illuminate\Support\Facades\Mail::to($booking->user_email)->send(new \App\Mail\TicketConfirmationMail($booking));
+                    \App\Jobs\SendTicketEmailJob::dispatch($booking);
                 }
             } catch (\Exception $mailEx) {
-                \Illuminate\Support\Facades\Log::error('Lỗi gửi email xác nhận vé: ' . $mailEx->getMessage());
+                \Illuminate\Support\Facades\Log::error('Lỗi dispatch Queue Job gửi vé: ' . $mailEx->getMessage());
             }
 
 
             return $booking;
         });
+    }
+
+    /**
+     * Thuật toán kiểm tra và chống để lại 1 ghế trống đơn lẻ (Anti-Orphan Seat)
+     */
+    public function validateAntiOrphanRule(int $showtimeId, array $selectedSeatIds): bool
+    {
+        if (empty($selectedSeatIds)) return true;
+
+        $showtime = Showtime::find($showtimeId);
+        if (!$showtime) return true;
+
+        $allSeats = Seat::where('room_id', $showtime->room_id)->get()->groupBy('row');
+        $selectedSet = array_flip($selectedSeatIds);
+
+        foreach ($allSeats as $row => $seatsInRow) {
+            $sorted = $seatsInRow->sortBy('number')->values();
+            $total = $sorted->count();
+            if ($total < 3) continue;
+
+            $hasUserSeatInRow = false;
+            foreach ($sorted as $s) {
+                if (isset($selectedSet[$s->id])) {
+                    $hasUserSeatInRow = true;
+                    break;
+                }
+            }
+            if (!$hasUserSeatInRow) continue;
+
+            $isTaken = function (int $idx) use ($sorted, $total, $selectedSet, $showtimeId): bool {
+                if ($idx < 0 || $idx >= $total) return true; // Mép ngoài tường coi như đã chặn
+                $s = $sorted[$idx];
+                if (isset($selectedSet[$s->id])) return true;
+                if ($s->type === 'couple') return false;
+
+                $lockKey = $this->getSeatLockKey($showtimeId, $s->id);
+                return Cache::has($lockKey);
+            };
+
+            for ($i = 0; $i < $total; $i++) {
+                if (!$isTaken($i)) {
+                    if ($isTaken($i - 1) && $isTaken($i + 1)) {
+                        return false; // Phát hiện tạo ra ghế trống đơn lẻ
+                    }
+                }
+            }
+        }
+
+        return true;
     }
 
     private function getSeatLockKey(int $showtimeId, int $seatId): string

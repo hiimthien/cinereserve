@@ -6,7 +6,18 @@ const api = axios.create({
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
-  timeout: 10000,
+  timeout: 15000,
+});
+
+// Attach Bearer Token to all authenticated requests
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('cinereserve_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+}, (error) => {
+  return Promise.reject(error);
 });
 
 export default api;

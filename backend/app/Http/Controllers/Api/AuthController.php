@@ -44,20 +44,41 @@ class AuthController extends Controller
 
         $token = $user->createToken('cinereserve-auth-token')->plainTextToken;
 
-        // Tự động gửi Email Chào mừng kèm Voucher
+        // Đồng bộ hóa các đơn đặt vé trước đó của Email này (nếu đã từng mua dạng khách vãng lai)
+        try {
+            $pastBookings = \App\Models\Booking::where('user_email', $user->email)
+                ->where('status', 'confirmed')
+                ->get();
+
+            if ($pastBookings->isNotEmpty()) {
+                $pastSpent = (float) $pastBookings->sum('total_amount');
+                $pastTickets = $pastBookings->count();
+                $bonusPoints = (int) floor($pastSpent * 0.05 / 1000); // 5% điểm thưởng tích lũy
+
+                $user->update([
+                    'total_spent' => $pastSpent,
+                    'total_tickets_bought' => $pastTickets,
+                    'points' => $user->points + $bonusPoints,
+                ]);
+            }
+        } catch (Exception $syncEx) {
+            Log::warning('Không thể đồng bộ vé cũ khi đăng ký: ' . $syncEx->getMessage());
+        }
+
+        // Tự động gửi Email Chào mừng qua Queue Job (Background Worker)
         try {
             $welcomeVoucher = Voucher::where('code', 'CHAOBANMOI')->first();
             if ($welcomeVoucher && !empty($user->email)) {
-                Mail::to($user->email)->send(new LoyaltyVoucherMail(
+                \App\Jobs\SendWelcomeVoucherEmailJob::dispatch(
                     user: $user,
                     voucher: $welcomeVoucher,
                     badgeText: 'Chào Mừng Thành Viên Mới',
                     customMessage: 'Chào mừng bạn gia nhập CineReserve Loyalty Club! Bạn nhận được 20 Điểm thưởng và Voucher 30.000 đ cho lần đặt vé đầu tiên:',
                     subjectTitle: '🎉 [CineReserve] Chào mừng bạn gia nhập! Tặng bạn Voucher 30.000 đ'
-                ));
+                );
             }
         } catch (Exception $e) {
-            Log::error('Lỗi gửi mail chào mừng: ' . $e->getMessage());
+            Log::error('Lỗi dispatch Queue Job chào mừng: ' . $e->getMessage());
         }
 
         return response()->json([
@@ -129,20 +150,20 @@ class AuthController extends Controller
                 'google_id' => $request->google_id,
             ]);
 
-            // Gửi email chào mừng
+            // Gửi email chào mừng qua Queue Job (Background Worker)
             try {
                 $welcomeVoucher = Voucher::where('code', 'CHAOBANMOI')->first();
                 if ($welcomeVoucher) {
-                    Mail::to($user->email)->send(new LoyaltyVoucherMail(
+                    \App\Jobs\SendWelcomeVoucherEmailJob::dispatch(
                         user: $user,
                         voucher: $welcomeVoucher,
                         badgeText: 'Chào Mừng Gia Nhập Qua Google',
                         customMessage: 'Đăng nhập Google thành công! Bạn nhận được 50 Điểm thưởng và Voucher 30.000 đ:',
                         subjectTitle: '🎉 [CineReserve] Chào mừng bạn gia nhập qua Google! Tặng bạn Voucher 30.000 đ'
-                    ));
+                    );
                 }
             } catch (Exception $e) {
-                Log::error('Lỗi gửi mail google auth: ' . $e->getMessage());
+                Log::error('Lỗi dispatch Queue Job google auth: ' . $e->getMessage());
             }
         }
 

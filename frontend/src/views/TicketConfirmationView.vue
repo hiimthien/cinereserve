@@ -223,8 +223,13 @@ onMounted(() => {
   });
 });
 
+import { useToast } from '../composables/useToast';
+
+const toast = useToast();
+
 const downloadPdf = () => {
-  alert('Đang tải file PDF vé điện tử...');
+  toast.success('Đang khởi tạo bản in vé điện tử E-Ticket PDF...', 'Tải vé');
+  window.print();
 };
 </script>
 

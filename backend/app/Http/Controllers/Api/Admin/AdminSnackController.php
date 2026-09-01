@@ -7,29 +7,20 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AdminSnackRequest;
 use App\Http\Resources\SnackResource;
-use App\Models\Snack;
+use App\Services\SnackService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AdminSnackController extends Controller
 {
+    public function __construct(
+        protected SnackService $snackService
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
-        $query = Snack::query();
-
-        if ($request->filled('category') && $request->input('category') !== 'all') {
-            $query->where('category', $request->input('category'));
-        }
-
-        if ($request->filled('search')) {
-            $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
-            });
-        }
-
-        $snacks = $query->orderBy('id', 'desc')->get();
+        $filters = $request->only(['category', 'search']);
+        $snacks = $this->snackService->getFilteredSnacks($filters);
 
         return response()->json([
             'success' => true,
@@ -39,7 +30,7 @@ class AdminSnackController extends Controller
 
     public function store(AdminSnackRequest $request): JsonResponse
     {
-        $snack = Snack::create($request->validated());
+        $snack = $this->snackService->createSnack($request->validated());
 
         return response()->json([
             'success' => true,
@@ -50,8 +41,7 @@ class AdminSnackController extends Controller
 
     public function update(AdminSnackRequest $request, int $id): JsonResponse
     {
-        $snack = Snack::findOrFail($id);
-        $snack->update($request->validated());
+        $snack = $this->snackService->updateSnack($id, $request->validated());
 
         return response()->json([
             'success' => true,
@@ -62,8 +52,7 @@ class AdminSnackController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        $snack = Snack::findOrFail($id);
-        $snack->delete();
+        $this->snackService->deleteSnack($id);
 
         return response()->json([
             'success' => true,

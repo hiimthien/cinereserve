@@ -27,7 +27,7 @@ class TmdbMovieSyncService
     /**
      * Đồng bộ toàn bộ phim đang chiếu (Now Playing) và sắp chiếu (Upcoming) tại Việt Nam
      */
-    public function syncAllMovies(int $nowPlayingPages = 2, int $upcomingPages = 1): array
+    public function syncAllMovies(int $nowPlayingPages = 1, int $upcomingPages = 1): array
     {
         $syncedNowPlaying = $this->syncNowPlayingMovies($nowPlayingPages);
         $syncedUpcoming = $this->syncUpcomingMovies($upcomingPages);
@@ -42,7 +42,7 @@ class TmdbMovieSyncService
     /**
      * Đồng bộ phim đang chiếu tại Việt Nam
      */
-    public function syncNowPlayingMovies(int $pages = 2): array
+    public function syncNowPlayingMovies(int $pages = 1): array
     {
         $movies = [];
         for ($page = 1; $page <= $pages; $page++) {
@@ -55,6 +55,7 @@ class TmdbMovieSyncService
             if ($response->successful()) {
                 $results = $response->json('results', []);
                 foreach ($results as $item) {
+                    if (empty($item['poster_path'])) continue; // Bỏ qua phim không có poster
                     $movie = $this->processAndSaveMovie($item['id'], 'now_showing');
                     if ($movie) {
                         $movies[] = $movie;
@@ -82,6 +83,7 @@ class TmdbMovieSyncService
             if ($response->successful()) {
                 $results = $response->json('results', []);
                 foreach ($results as $item) {
+                    if (empty($item['poster_path'])) continue; // Bỏ qua phim không có poster
                     $movie = $this->processAndSaveMovie($item['id'], 'coming_soon');
                     if ($movie) {
                         $movies[] = $movie;
@@ -94,15 +96,15 @@ class TmdbMovieSyncService
     }
 
     /**
-     * Lấy chi tiết 1 bộ phim, credits, videos và lưu vào DB
+     * Lấy chi tiết 1 bộ phim, credits, videos và lưu vào DB (Deduplication chuẩn)
      */
     public function processAndSaveMovie(int $tmdbId, string $status = 'now_showing'): ?Movie
     {
         try {
-            // Lấy chi tiết tiếng Việt
+            // Lấy thông tin tiếng Việt
             $viResponse = $this->makeRequest("/movie/{$tmdbId}", [
-                'append_to_response' => 'videos,credits',
                 'language' => 'vi-VN',
+                'append_to_response' => 'videos,credits',
             ]);
 
             if (!$viResponse->successful()) {
@@ -111,33 +113,34 @@ class TmdbMovieSyncService
 
             $viData = $viResponse->json();
 
-            // Nếu thiếu overview hoặc trailer thì gọi thêm bản tiếng Anh
+            // Nếu thiếu overview hoặc video, lấy bổ sung tiếng Anh
             $enData = [];
             if (empty($viData['overview']) || empty($viData['videos']['results'])) {
                 $enResponse = $this->makeRequest("/movie/{$tmdbId}", [
-                    'append_to_response' => 'videos,credits',
                     'language' => 'en-US',
+                    'append_to_response' => 'videos,credits',
                 ]);
                 if ($enResponse->successful()) {
                     $enData = $enResponse->json();
                 }
             }
 
-            $title = !empty($viData['title']) ? $viData['title'] : ($enData['title'] ?? 'Phim Chiếu Rạp');
-            $originalTitle = $viData['original_title'] ?? $title;
+            $title = trim(!empty($viData['title']) ? $viData['title'] : ($enData['title'] ?? 'Phim Chiếu Rạp'));
+            $originalTitle = trim($viData['original_title'] ?? $title);
             $overview = !empty($viData['overview']) ? $viData['overview'] : ($enData['overview'] ?? 'Đang cập nhật tóm tắt nội dung phim.');
             
             // Xử lý Poster & Backdrop chất lượng cao
             $posterPath = $viData['poster_path'] ?? ($enData['poster_path'] ?? null);
             $backdropPath = $viData['backdrop_path'] ?? ($enData['backdrop_path'] ?? null);
 
-            $posterUrl = $posterPath 
-                ? "{$this->imageBaseUrl}/w780{$posterPath}" 
-                : 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80';
+            if (empty($posterPath)) {
+                return null; // Không lưu phim không có poster
+            }
 
+            $posterUrl = "{$this->imageBaseUrl}/w780{$posterPath}";
             $backdropUrl = $backdropPath 
                 ? "{$this->imageBaseUrl}/original{$backdropPath}" 
-                : 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=1600&auto=format&fit=crop&q=80';
+                : $posterUrl;
 
             // Xử lý Trailer YouTube
             $videos = array_merge($viData['videos']['results'] ?? [], $enData['videos']['results'] ?? []);
@@ -183,11 +186,28 @@ class TmdbMovieSyncService
             $rating = round((float) ($viData['vote_average'] ?? 8.0), 1);
             if ($rating <= 0) $rating = 8.5;
 
-            $slug = Str::slug($originalTitle . '-' . $tmdbId);
+            // Xác định nhãn phân loại độ tuổi theo chuẩn Cục Điện Ảnh
+            $ageRating = 'T13';
+            $genresJoined = mb_strtolower(implode(' ', $genres));
+            if (!empty($viData['adult']) || str_contains($genresJoined, 'kinh dị') || str_contains($genresJoined, 'horror') || str_contains($genresJoined, 'tội phạm')) {
+                $ageRating = 'T18';
+            } elseif (str_contains($genresJoined, 'hành động') || str_contains($genresJoined, 'giật gân') || str_contains($genresJoined, 'thriller')) {
+                $ageRating = 'T16';
+            } elseif (str_contains($genresJoined, 'hoạt hình') || str_contains($genresJoined, 'animation')) {
+                $ageRating = str_contains($genresJoined, 'gia đình') ? 'P' : 'K';
+            }
+
+            // Chống trùng lặp tuyệt đối (Deduplication): Tìm theo title hoặc original_title
+            $existingMovie = Movie::where('title', $title)
+                ->orWhere('original_title', $originalTitle)
+                ->first();
+
+            $slug = $existingMovie ? $existingMovie->slug : Str::slug($originalTitle . '-' . $tmdbId);
 
             return Movie::updateOrCreate(
-                ['slug' => $slug],
+                ['id' => $existingMovie?->id ?? null],
                 [
+                    'slug' => $slug,
                     'title' => $title,
                     'original_title' => $originalTitle,
                     'duration' => $duration,
@@ -196,6 +216,7 @@ class TmdbMovieSyncService
                     'backdrop_url' => $backdropUrl,
                     'trailer_url' => $trailerUrl,
                     'rating' => $rating,
+                    'age_rating' => $ageRating,
                     'genre' => $genres,
                     'description' => $overview,
                     'director' => $director ?? 'Đang cập nhật',
@@ -222,5 +243,4 @@ class TmdbMovieSyncService
 
         return $request->get($url, $params);
     }
-
 }

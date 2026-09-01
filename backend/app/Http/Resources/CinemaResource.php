@@ -16,6 +16,8 @@ class CinemaResource extends JsonResource
             'name' => $this->name,
             'address' => $this->address,
             'city' => $this->city,
+            'rooms_count' => $this->rooms_count ?? ($this->rooms ? count($this->rooms) : 0),
+            'showtimes_count' => $this->showtimes_count ?? 0,
             'rooms' => RoomResource::collection($this->whenLoaded('rooms')),
         ];
     }

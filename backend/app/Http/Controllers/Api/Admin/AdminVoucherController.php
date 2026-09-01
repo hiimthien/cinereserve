@@ -7,26 +7,20 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AdminVoucherRequest;
 use App\Http\Resources\VoucherResource;
-use App\Models\Voucher;
+use App\Services\VoucherService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AdminVoucherController extends Controller
 {
+    public function __construct(
+        protected VoucherService $voucherService
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
-        $query = Voucher::query();
-
-        if ($request->filled('search')) {
-            $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('code', 'like', "%{$search}%")
-                  ->orWhere('title', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
-            });
-        }
-
-        $vouchers = $query->orderBy('id', 'desc')->get();
+        $filters = $request->only(['search']);
+        $vouchers = $this->voucherService->getFilteredVouchers($filters);
 
         return response()->json([
             'success' => true,
@@ -36,7 +30,7 @@ class AdminVoucherController extends Controller
 
     public function store(AdminVoucherRequest $request): JsonResponse
     {
-        $voucher = Voucher::create($request->validated());
+        $voucher = $this->voucherService->createVoucher($request->validated());
 
         return response()->json([
             'success' => true,
@@ -47,8 +41,7 @@ class AdminVoucherController extends Controller
 
     public function update(AdminVoucherRequest $request, int $id): JsonResponse
     {
-        $voucher = Voucher::findOrFail($id);
-        $voucher->update($request->validated());
+        $voucher = $this->voucherService->updateVoucher($id, $request->validated());
 
         return response()->json([
             'success' => true,
@@ -59,8 +52,7 @@ class AdminVoucherController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        $voucher = Voucher::findOrFail($id);
-        $voucher->delete();
+        $this->voucherService->deleteVoucher($id);
 
         return response()->json([
             'success' => true,
