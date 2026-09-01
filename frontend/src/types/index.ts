@@ -35,12 +35,14 @@ export interface Showtime {
   movie_id: number;
   room_id: number;
   cinema_id: number;
+  show_date?: string;
   start_time: string;
   end_time: string;
   base_price: number;
   cinema?: Cinema;
   room?: Room;
 }
+
 
 export interface Movie {
   id: number;
@@ -77,14 +79,23 @@ export interface Booking {
   showtime?: Showtime;
   seats?: Seat[];
   qr_code?: string;
+  payment_method?: string;
+  combos?: any[];
 }
 
+
+
 export interface PaymentPayload {
-  booking_code: string;
-  payment_method: 'vnpay' | 'momo' | 'card';
+  booking_code?: string;
+  payment_method: 'vnpay' | 'momo' | 'card' | string;
   amount: number;
+  user_name?: string;
+  user_email?: string;
+  user_phone?: string;
+  combos?: any[];
   card_number?: string;
   card_holder?: string;
   expiry_date?: string;
   cvv?: string;
 }
+

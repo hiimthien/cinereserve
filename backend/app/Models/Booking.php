@@ -16,8 +16,10 @@ class Booking extends Model
 
     protected $casts = [
         'total_amount' => 'float',
+        'combos' => 'array',
         'expires_at' => 'datetime',
     ];
+
 
     public function user(): BelongsTo
     {

@@ -1,33 +1,41 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\MovieFilterRequest;
+use App\Http\Resources\MovieResource;
 use App\Models\Movie;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class MovieController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    /**
+     * Lấy danh sách phim theo bộ lọc chuẩn RESTful
+     */
+    public function index(MovieFilterRequest $request): AnonymousResourceCollection
     {
         $movies = Movie::with(['showtimes.cinema', 'showtimes.room'])
-            ->where('status', 'now_showing')
+            ->filter($request->validated())
+            ->orderByDesc('rating')
+            ->orderByDesc('release_date')
             ->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => $movies,
-        ]);
+        return MovieResource::collection($movies);
     }
 
-    public function show(int $id): JsonResponse
+    /**
+     * Chi tiết phim theo ID hoặc Slug
+     */
+    public function show(string $idOrSlug): MovieResource
     {
-        $movie = Movie::with(['showtimes.cinema', 'showtimes.room'])->findOrFail($id);
+        $movie = Movie::with(['showtimes.cinema', 'showtimes.room'])
+            ->where('id', is_numeric($idOrSlug) ? (int) $idOrSlug : 0)
+            ->orWhere('slug', $idOrSlug)
+            ->firstOrFail();
 
-        return response()->json([
-            'success' => true,
-            'data' => $movie,
-        ]);
+        return new MovieResource($movie);
     }
 }

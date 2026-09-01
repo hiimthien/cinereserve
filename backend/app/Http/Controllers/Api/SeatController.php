@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\HoldSeatRequest;
 use App\Services\SeatLockingService;
 use Exception;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class SeatController extends Controller
 {
@@ -14,11 +16,12 @@ class SeatController extends Controller
         protected SeatLockingService $seatLockingService
     ) {}
 
-    public function hold(Request $request, int $showtimeId, int $seatId): JsonResponse
+    /**
+     * Giữ ghế với Redis Atomic Lock (10 phút)
+     */
+    public function hold(HoldSeatRequest $request, int $showtimeId, int $seatId): JsonResponse
     {
-        $validated = $request->validate([
-            'session_id' => 'required|string',
-        ]);
+        $validated = $request->validated();
 
         try {
             $success = $this->seatLockingService->holdSeat(
@@ -39,11 +42,12 @@ class SeatController extends Controller
         }
     }
 
-    public function release(Request $request, int $showtimeId, int $seatId): JsonResponse
+    /**
+     * Giải phóng ghế
+     */
+    public function release(HoldSeatRequest $request, int $showtimeId, int $seatId): JsonResponse
     {
-        $validated = $request->validate([
-            'session_id' => 'required|string',
-        ]);
+        $validated = $request->validated();
 
         $success = $this->seatLockingService->releaseSeat(
             $showtimeId,

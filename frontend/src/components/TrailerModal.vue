@@ -1,45 +1,46 @@
 <template>
-  <div 
-    v-if="isOpen" 
-    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-opacity"
-    @click.self="close"
+  <BaseModal 
+    :model-value="isOpen"
+    :title="title ? `${title} - Official Trailer` : 'Official Trailer'"
+    max-width="4xl"
+    @update:model-value="$emit('close')"
+    @close="$emit('close')"
   >
-    <div class="relative w-full max-w-4xl bg-cinema-surface rounded-3xl overflow-hidden border border-cinema-border shadow-2xl">
-      <!-- Header -->
-      <div class="flex items-center justify-between p-4 border-b border-white/10">
-        <h3 class="font-bold text-white text-base">{{ title }} - Official Trailer</h3>
-        <button 
-          @click="close"
-          class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
-        >
-          ✕
-        </button>
-      </div>
-
-      <!-- Video Player -->
-      <div class="relative w-full aspect-video bg-black">
-        <iframe 
-          v-if="videoUrl"
-          :src="videoUrl + '?autoplay=1'" 
-          class="w-full h-full border-0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-          allowfullscreen
-        ></iframe>
+    <!-- Video Player in 16:9 Aspect Ratio -->
+    <div class="relative w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-inner">
+      <iframe 
+        v-if="isOpen && videoUrl"
+        :src="embedUrl" 
+        class="w-full h-full border-0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+        allowfullscreen
+      ></iframe>
+      <div v-else class="w-full h-full flex items-center justify-center text-cinema-muted text-xs">
+        Đang tải trailer...
       </div>
     </div>
-  </div>
+  </BaseModal>
 </template>
 
 <script setup lang="ts">
-defineProps<{
+import { computed } from 'vue';
+import BaseModal from './base/BaseModal.vue';
+
+const props = defineProps<{
   isOpen: boolean;
   title: string;
   videoUrl: string;
 }>();
 
-const emit = defineEmits(['close']);
+defineEmits<{
+  (e: 'close'): void;
+}>();
 
-const close = () => {
-  emit('close');
-};
+const embedUrl = computed(() => {
+  if (!props.videoUrl) return '';
+  // Ensure autoplay query param
+  return props.videoUrl.includes('?') 
+    ? `${props.videoUrl}&autoplay=1` 
+    : `${props.videoUrl}?autoplay=1`;
+});
 </script>

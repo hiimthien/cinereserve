@@ -20,7 +20,31 @@ class SeatLockingService
     public function getSeatsWithRealTimeStatus(int $showtimeId): array
     {
         $showtime = Showtime::with(['room.seats'])->findOrFail($showtimeId);
-        $seats = $showtime->room->seats;
+        $seats = $showtime->room ? $showtime->room->seats : collect();
+
+        // Nếu phòng chưa có ghế, tự động tạo ma trận ghế chuẩn (118 ghế)
+        if ($seats->isEmpty() && $showtime->room) {
+            $rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K'];
+            foreach ($rows as $row) {
+                $cols = ($row === 'K') ? 6 : 14;
+                for ($col = 1; $col <= $cols; $col++) {
+                    $type = 'standard';
+                    if ($row === 'K') {
+                        $type = 'couple';
+                    } elseif (in_array($row, ['E', 'F', 'G', 'H']) && $col >= 4 && $col <= 11) {
+                        $type = 'vip';
+                    }
+                    Seat::create([
+                        'room_id' => $showtime->room->id,
+                        'row' => $row,
+                        'number' => $col,
+                        'type' => $type,
+                    ]);
+                }
+            }
+            $showtime->room->load('seats');
+            $seats = $showtime->room->seats;
+        }
 
         // 1. Get confirmed booked seats from DB
         $bookedSeatIds = BookingSeat::whereHas('booking', function ($q) use ($showtimeId) {
@@ -49,13 +73,19 @@ class SeatLockingService
                 }
             }
 
-            // Calculate price based on seat type
-            $price = $showtime->base_price;
+            // Calculate price based on seat type (VND)
+            $price = (float) ($showtime->base_price ?: 95000);
             if ($seat->type === 'vip') {
-                $price += 6.00;
+                $price = isset($showtime->price_vip) && (float)$showtime->price_vip > 0 
+                    ? (float) $showtime->price_vip 
+                    : ($price + 15000);
             } elseif ($seat->type === 'couple') {
-                $price = ($price * 2) + 4.00;
+                $price = isset($showtime->price_couple) && (float)$showtime->price_couple > 0 
+                    ? (float) $showtime->price_couple 
+                    : ($price * 2);
             }
+
+
 
             $result[] = [
                 'id' => $seat->id,
@@ -174,27 +204,95 @@ class SeatLockingService
                 }
             }
 
-            // Create Booking
+            // Calculate exact total price from seats, combos and discount
+            $seatsTotal = 0;
+            $seatsList = Seat::whereIn('id', $seatIds)->get();
+            foreach ($seatsList as $seat) {
+                $p = (float) ($showtime->base_price ?: 95000);
+                if ($seat->type === 'vip') {
+                    $p = isset($showtime->price_vip) && (float)$showtime->price_vip > 0 
+                        ? (float) $showtime->price_vip 
+                        : ($p + 15000);
+                } elseif ($seat->type === 'couple') {
+                    $p = isset($showtime->price_couple) && (float)$showtime->price_couple > 0 
+                        ? (float) $showtime->price_couple 
+                        : ($p * 2);
+                }
+                $seatsTotal += $p;
+            }
+
+
+            $combosTotal = 0;
+            if (!empty($bookingData['combos'])) {
+                foreach ($bookingData['combos'] as $cb) {
+                    $combosTotal += (float) ($cb['price'] ?? 0) * (int) ($cb['quantity'] ?? 1);
+                }
+            }
+
+            $discountAmount = (float) ($bookingData['discount_amount'] ?? 0);
+            $calculatedTotal = max(0, $seatsTotal + $combosTotal - $discountAmount);
+
+            $finalTotal = isset($bookingData['total_amount']) && (float)$bookingData['total_amount'] > 0
+                ? (float) $bookingData['total_amount']
+                : $calculatedTotal;
+
+            // Create Booking with Combos, Voucher and Customer details
             $bookingCode = 'CR-' . strtoupper(substr(uniqid(), -6));
             $booking = \App\Models\Booking::create([
                 'booking_code' => $bookingCode,
                 'showtime_id' => $showtimeId,
-                'user_name' => $bookingData['card_holder'] ?? 'Khách Hàng',
-                'user_email' => $bookingData['email'] ?? 'thiencao.work@gmail.com',
-                'user_phone' => $bookingData['phone'] ?? '+84 388 145 796',
-                'total_amount' => $bookingData['total_amount'] ?? 0,
+                'user_name' => $bookingData['user_name'] ?? ($bookingData['card_holder'] ?? 'Cao Lương Thiện'),
+                'user_email' => $bookingData['user_email'] ?? ($bookingData['email'] ?? 'caoluongthienk1@gmail.com'),
+                'user_phone' => $bookingData['user_phone'] ?? ($bookingData['phone'] ?? '0388145796'),
+                'total_amount' => $finalTotal,
+                'combos' => $bookingData['combos'] ?? [],
+                'voucher_code' => $bookingData['voucher_code'] ?? null,
+                'discount_amount' => $discountAmount,
                 'status' => 'confirmed',
                 'expires_at' => now()->addDay(),
                 'qr_code' => "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=CINERESERVE-{$bookingCode}",
             ]);
 
+            // Increment voucher usage if applied
+            if (!empty($bookingData['voucher_code'])) {
+                \App\Models\Voucher::where('code', $bookingData['voucher_code'])->increment('used_count');
+            }
+
+
+            // Award Loyalty points and update Membership tier
+            $user = \App\Models\User::where('email', $booking->user_email)->first();
+            if ($user) {
+                $loyaltyResult = $user->processBookingLoyalty((float) $booking->total_amount, count($seatIds));
+
+                // If upgraded to VIP or Diamond, send celebration upgrade mail!
+                if ($loyaltyResult['upgraded']) {
+                    try {
+                        $upgradeVoucherCode = $user->membership_tier === 'diamond' ? 'FREEVECINE' : 'VIPCINE50';
+                        $upgradeVoucher = \App\Models\Voucher::where('code', $upgradeVoucherCode)->first();
+                        if ($upgradeVoucher) {
+                            \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\LoyaltyVoucherMail(
+                                user: $user,
+                                voucher: $upgradeVoucher,
+                                badgeText: "CHÚC MỪNG THĂNG HẠNG " . strtoupper($user->membership_tier),
+                                customMessage: "Xin chúc mừng bạn đã xuất sắc thăng hạng lên {$user->getTierName()}! Để vinh danh cột mốc này, CineReserve gửi tặng bạn đặc quyền Voucher sau:",
+                                subjectTitle: "👑 [CineReserve] Vinh danh thăng hạng {$user->getTierName()}! Tặng bạn Voucher độc quyền"
+                            ));
+                        }
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::error('Lỗi gửi mail thăng hạng: ' . $e->getMessage());
+                    }
+                }
+            }
+
+
+
             // Save booking seats & release Redis locks
             $seatsInfo = [];
             foreach ($seatIds as $seatId) {
                 $seat = Seat::find($seatId);
-                $seatPrice = $showtime->base_price;
-                if ($seat && $seat->type === 'vip') $seatPrice += 6;
-                if ($seat && $seat->type === 'couple') $seatPrice = ($seatPrice * 2) + 4;
+                $seatPrice = $showtime->base_price ?: 95000;
+                if ($seat && $seat->type === 'vip') $seatPrice += 20000;
+                if ($seat && $seat->type === 'couple') $seatPrice = ($seatPrice * 2) + 30000;
 
                 BookingSeat::create([
                     'booking_id' => $booking->id,
@@ -205,12 +303,14 @@ class SeatLockingService
                 // Forget redis lock
                 Cache::forget($this->getSeatLockKey($showtimeId, $seatId));
 
+
                 // Broadcast booked state
-                broadcast(new SeatStatusUpdated(
+                event(new SeatStatusUpdated(
                     showtime_id: $showtimeId,
                     seat_id: $seatId,
                     status: 'booked'
-                ))->toOthers();
+                ));
+
 
                 if ($seat) {
                     $seatsInfo[] = $seat;
@@ -227,10 +327,20 @@ class SeatLockingService
                 'payload' => $bookingData,
             ]);
 
-            $booking->load(['showtime.movie', 'showtime.room']);
-            $booking->seats = $seatsInfo;
+            $booking->load(['showtime.movie', 'showtime.cinema', 'showtime.room', 'bookingSeats.seat']);
+            $booking->setRelation('seats', collect($seatsInfo));
 
-            return $booking->toArray();
+            // Gửi email vé điện tử kèm mã QR tới khách hàng
+            try {
+                if (!empty($booking->user_email)) {
+                    \Illuminate\Support\Facades\Mail::to($booking->user_email)->send(new \App\Mail\TicketConfirmationMail($booking));
+                }
+            } catch (\Exception $mailEx) {
+                \Illuminate\Support\Facades\Log::error('Lỗi gửi email xác nhận vé: ' . $mailEx->getMessage());
+            }
+
+
+            return $booking;
         });
     }
 

@@ -8,20 +8,23 @@
 /backend/storage/framework/sessions/*
 /backend/storage/framework/views/*
 /backend/storage/logs/*
-/backend/.env
-/backend/.env.backup
-/backend/.env.production
+/backend/.env*
 /backend/.phpunit.result.cache
 /backend/database/*.sqlite
 /backend/database/*.sqlite-journal
+/backend/test_checkout.json
 
 # Vue Frontend ignores
 /frontend/node_modules/
 /frontend/dist/
 /frontend/dist-ssr/
 /frontend/*.local
-/frontend/.env.local
-/frontend/.env.*.local
+/frontend/.env*
+
+# Agents, Skills & Rules
+.agents/
+AGENTS.md
+GEMINI.md
 
 # General OS & IDE
 .DS_Store
@@ -31,3 +34,5 @@ Thumbs.db
 *.swp
 *.swo
 *.log
+*.tmp
+*.temp

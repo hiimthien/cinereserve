@@ -31,7 +31,13 @@ export const useBookingStore = defineStore('booking', () => {
 
   // Computed
   const seatsPrice = computed(() => {
-    return selectedSeats.value.reduce((total, seat) => total + (seat.price || 12), 0);
+    const base = selectedShowtime.value?.base_price || 95000;
+    return selectedSeats.value.reduce((total, seat) => {
+      let p = seat.price || base;
+      if (seat.type === 'vip') p = base + 20000;
+      if (seat.type === 'couple') p = (base * 2) + 30000;
+      return total + p;
+    }, 0);
   });
 
   const totalPrice = computed(() => {
@@ -39,11 +45,19 @@ export const useBookingStore = defineStore('booking', () => {
   });
 
   const nowShowingMovies = computed(() => {
-    return movies.value.filter(m => m.status === 'now_showing');
+    const list = movies.value.filter(m => m.status === 'now_showing');
+    if (list.length === 0 && movies.value.length > 0) {
+      return movies.value.slice(0, Math.max(1, Math.ceil(movies.value.length * 0.65)));
+    }
+    return list;
   });
 
   const comingSoonMovies = computed(() => {
-    return movies.value.filter(m => m.status === 'coming_soon');
+    const list = movies.value.filter(m => m.status === 'coming_soon');
+    if (list.length === 0 && movies.value.length > 0) {
+      return movies.value.slice(Math.max(1, Math.ceil(movies.value.length * 0.65)));
+    }
+    return list;
   });
 
   const formattedRemainingTime = computed(() => {
@@ -63,13 +77,39 @@ export const useBookingStore = defineStore('booking', () => {
       const data = response.data.data || response.data;
       if (Array.isArray(data) && data.length > 0) {
         movies.value = data;
-        if (!currentMovie.value) {
-          currentMovie.value = data[0];
-        }
+      } else {
+        mockCatalog();
       }
     } catch (error) {
       console.warn('API error, using fallback catalog:', error);
       mockCatalog();
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
+  const loadShowtimeById = async (showtimeId: number) => {
+    try {
+      isLoading.value = true;
+      selectedSeats.value = [];
+      snackTotal.value = 0;
+      stopCountdown();
+
+      const res = await api.get(`/showtimes/${showtimeId}`);
+      const stData = res.data.data || res.data;
+      selectedShowtime.value = stData;
+      if (stData.movie) {
+        currentMovie.value = stData.movie;
+      }
+      if (stData.show_date) {
+        selectedDate.value = stData.show_date;
+      }
+
+      await fetchSeats(showtimeId);
+      subscribeToSeatUpdates(showtimeId);
+    } catch (err) {
+      console.error('Failed to load showtime by ID', err);
+      generateMockSeats(showtimeId);
     } finally {
       isLoading.value = false;
     }
@@ -106,12 +146,22 @@ export const useBookingStore = defineStore('booking', () => {
   };
 
   const toggleSeat = async (seat: Seat) => {
-    if (seat.status === 'booked') return;
-    if (seat.status === 'holding' && seat.held_by !== sessionId.value) return;
+    // 1. Block click if seat is already booked
+    if (seat.status === 'booked') {
+      alert(`Ghế ${seat.row}${seat.number} đã được bán.`);
+      return;
+    }
+
+    // 2. Block click if seat is currently held by someone else
+    if (seat.status === 'holding' && seat.held_by !== sessionId.value) {
+      alert(`Ghế ${seat.row}${seat.number} đang được người dùng khác giữ chỗ trong 10 phút.`);
+      return;
+    }
 
     const index = selectedSeats.value.findIndex(s => s.id === seat.id);
 
     if (index >= 0) {
+      // Unselect & release seat
       selectedSeats.value.splice(index, 1);
       seat.status = 'available';
       seat.held_by = null;
@@ -126,10 +176,13 @@ export const useBookingStore = defineStore('booking', () => {
         stopCountdown();
       }
     } else {
+      // Check maximum 8 seats limit
       if (selectedSeats.value.length >= 8) {
         alert('Bạn chỉ có thể chọn tối đa 8 ghế mỗi lần đặt.');
         return;
       }
+
+      // Optimistic Hold
       seat.status = 'selected';
       seat.held_by = sessionId.value;
       selectedSeats.value.push(seat);
@@ -138,15 +191,23 @@ export const useBookingStore = defineStore('booking', () => {
         await api.post(`/showtimes/${selectedShowtime.value?.id}/seats/${seat.id}/hold`, {
           session_id: sessionId.value
         });
-      } catch (err) {
-        console.warn('Seat hold API err:', err);
-      }
 
-      if (!isTimerActive.value) {
-        startCountdown(600); // 10 minutes
+        if (!isTimerActive.value) {
+          startCountdown(600); // 10 minutes
+        }
+      } catch (err: any) {
+        // Rollback optimistic selection if seat was just locked by another person in Redis
+        seat.status = 'holding';
+        seat.held_by = 'other_user';
+        const rollbackIndex = selectedSeats.value.findIndex(s => s.id === seat.id);
+        if (rollbackIndex >= 0) {
+          selectedSeats.value.splice(rollbackIndex, 1);
+        }
+        alert(err.response?.data?.message || `Ghế ${seat.row}${seat.number} vừa bị người dùng khác giữ chỗ.`);
       }
     }
   };
+
 
   const startCountdown = (seconds: number = 600) => {
     stopCountdown();
@@ -211,6 +272,10 @@ export const useBookingStore = defineStore('booking', () => {
       const bookingResult = response.data.data || response.data;
       activeTicket.value = bookingResult;
       bookingHistory.value.unshift(bookingResult);
+      try {
+        localStorage.setItem('cinereserve_booking_history', JSON.stringify(bookingHistory.value));
+      } catch (e) {}
+
       stopCountdown();
       selectedSeats.value = [];
       return bookingResult;
@@ -233,11 +298,16 @@ export const useBookingStore = defineStore('booking', () => {
       };
       activeTicket.value = mockResult;
       bookingHistory.value.unshift(mockResult);
+      try {
+        localStorage.setItem('cinereserve_booking_history', JSON.stringify(bookingHistory.value));
+      } catch (e) {}
+
       stopCountdown();
       selectedSeats.value = [];
       return mockResult;
     }
   };
+
 
   function mockCatalog() {
     // Fallback if offline
@@ -401,6 +471,7 @@ export const useBookingStore = defineStore('booking', () => {
     comingSoonMovies,
     sessionId,
     fetchMovies,
+    loadShowtimeById,
     selectMovie,
     selectDate,
     selectShowtime,
@@ -410,4 +481,5 @@ export const useBookingStore = defineStore('booking', () => {
     stopCountdown,
     processCheckout
   };
+
 });
