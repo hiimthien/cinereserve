@@ -1,81 +1,86 @@
-# CineReserve 🎬
+# CineReserve
 
-> Hệ thống đặt vé xem phim trực tuyến thời gian thực, tập trung giải quyết bài toán **Concurrency (Xử lý đồng thời)** và **Race Condition khi giữ ghế** trong các đợt mở bán vé cao điểm.
+Hệ thống đặt vé xem phim trực tuyến thời gian thực (Real-time Cinema Booking System), tập trung giải quyết bài toán **Concurrency** và **Race Condition khi giữ ghế** trong các đợt mở bán vé cao điểm.
 
-[![Laravel](https://img.shields.io/badge/Laravel-11.x-FF2D20?style=flat-square&logo=laravel&logoColor=white)](https://laravel.com)
-[![Vue.js](https://img.shields.io/badge/Vue.js-3.x-4FC08D?style=flat-square&logo=vue.js&logoColor=white)](https://vuejs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
-[![Redis](https://img.shields.io/badge/Redis-Lock%20%26%20Queue-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io)
-[![Laravel Reverb](https://img.shields.io/badge/Laravel_Reverb-WebSocket-FF2D20?style=flat-square&logo=laravel&logoColor=white)](https://laravel.com/docs/11.x/reverb)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker&logoColor=white)](https://docker.com)
+> **Lưu ý:** Đây là dự án cá nhân phục vụ mục đích học tập và xây dựng portfolio kỹ thuật. Các cổng thanh toán (VNPAY, MoMo) được triển khai ở chế độ mô phỏng / sandbox.
 
 ---
 
-## 📌 Bối Cảnh & Bài Toán Kỹ Thuật
+## Điểm nhấn kỹ thuật (Technical Highlights)
 
-Khi các cụm rạp mở bán vé cho các phim bom tấn (như *Avengers, Nhà Bà Nữ, Taylor Swift: The Eras Tour*), hệ thống thường đối mặt với 2 vấn đề lớn:
-1. **Trùng ghế (Double-booking):** Hàng chục người cùng chọn và bấm thanh toán 1 ghế VIP trong cùng 1 giây.
-2. **Quá tải Database:** Nếu mỗi lượt bấm chọn ghế đều ghi trực tiếp vào ổ đĩa MySQL, connection pool sẽ nhanh chóng bị cạn kiệt.
-
-### 💡 Giải Pháp Kỹ Thuật Trong CineReserve:
-* **Khóa phân tán trên Redis (Atomic Distributed Lock):** Khi người dùng chọn ghế, hệ thống thực hiện lệnh `SET lock:showtime:{id}:seat:{id} {user_id} NX EX 600`. Thao tác diễn ra trên RAM trong ~1-2ms, chặn ngay các request bấm sau mà không cần query xuống DB.
-* **Đồng bộ trạng thái ghế qua WebSocket:** Sử dụng **Laravel Reverb**, ngay khi ghế được giữ, sự kiện `SeatHoldingEvent` sẽ được broadcast tới tất cả các client đang xem phòng chiếu đó để chuyển màu ghế sang trạng thái "Đang có người giữ" trong < 50ms.
-* **Pessimistic Locking khi Checkout:** Ở bước xác nhận thanh toán, hệ thống sử dụng `SELECT ... FOR UPDATE` trong Database Transaction để đảm bảo tính toàn vẹn (ACID) tuyệt đối trước khi trừ tiền và xuất vé.
-* **Tự động nhả ghế (Auto-release):** Nếu sau 10 phút người dùng không thanh toán, Redis TTL tự hết hạn và background worker sẽ giải phóng ghế cho người khác chọn.
-
----
-
-## 🚀 Các Chức Năng Chính
-
-### 1. Dành Cho Khách Hàng (Customer Portal)
-* **Khám phá phim & lịch chiếu:** Lọc phim Đang chiếu / Sắp chiếu, xem trailer YouTube modal, duyệt lịch chiếu theo ngày và theo 30 cụm rạp (CGV, Lotte, BHD, Galaxy, Beta) trên 13 tỉnh thành.
-* **Sơ đồ ghế trực quan:** Hiển thị ghế Thường, VIP, Ghế Đôi với cơ chế giữ ghế thời gian thực và đếm ngược 10 phút.
-* **Combo Bắp Nước & Voucher:** Tích hợp chọn combo F&B, áp dụng mã giảm giá và tính toán tổng tiền động.
-* **Cổng thanh toán:** Hỗ trợ mô phỏng thanh toán VNPAY / MoMo với cơ chế chống callback trùng lặp (Idempotent Webhook).
-* **Vé điện tử & Lịch sử:** Nhận vé kèm mã QR định danh, xem lại vé đã mua tại mục "Vé Của Tôi".
-* **Đánh giá phim & Tích điểm CinePoints:** Viết nhận xét kèm số sao, tích điểm nâng hạng thành viên (Member, Gold, VIP, Diamond) để đổi quà trực tiếp.
-
-### 2. Dành Cho Nhân Viên Soát Vé (Staff Scanner PWA)
-* Truy cập nhanh tại `/staff/scanner`: Bật camera quét mã QR trên vé của khách hoặc nhập mã vé.
-* **Kiểm tra hợp lệ:** Kiểm tra đúng ngày, đúng suất chiếu, đúng phòng rạp.
-* **Chống gian lận:** Báo động nếu vé đã qua sử dụng (chống quay vòng vé) hoặc đã hết hạn.
-* **Cảnh báo độ tuổi:** Tự động hiển thị nhãn tuổi của phim (**P, K, T13, T16, T18** theo quy định Cục Điện Ảnh) để nhân viên đối chiếu CCCD của khách trước khi vào rạp.
-* **Hiển thị combo bắp nước:** Giúp quầy vé chuẩn bị đúng phần bắp nước khách đã đặt online.
-
-### 3. Dành Cho Quản Trị Viên (Admin Portal)
-* **Dashboard Analytics:** Biểu đồ doanh thu 12 tháng, phân bố thị phần các cụm rạp, thống kê top 5 phim bán chạy nhất và tỷ lệ lấp đầy phòng chiếu.
-* **Tạo suất chiếu hàng loạt (Batch Generation):** Cho phép tạo lịch chiếu đồng thời cho nhiều rạp và nhiều khung giờ trong tuần chỉ với 1 thao tác.
-* **Quản lý toàn diện:** CRUD Phim (đồng bộ tự động từ TMDb API), Cụm rạp (30 rạp), Phòng chiếu & sơ đồ ghế (70 phòng), Đơn đặt vé, Menu Bắp Nước, Voucher khuyến mãi và Người dùng (RBAC: Admin / Staff / Customer).
+- **Xử lý Race Condition & Giữ ghế 2 lớp (Two-Phase Locking Strategy):**
+  - **Lớp 1 (RAM Lock):** Khi người dùng click chọn ghế, backend thực hiện lệnh Redis `SET lock:showtime:{id}:seat:{id} {session_id} NX EX 600`. Thao tác phản hồi trong ~1-2ms, chặn ngay các request đồng thời từ user khác mà không tạo tải I/O lên MySQL.
+  - **Lớp 2 (Pessimistic Lock at Checkout):** Tại bước xác nhận thanh toán, hệ thống mở Database Transaction và khóa bản ghi bằng `SELECT ... FOR UPDATE` trên bảng `showtime_seats`. Cách tiếp cận này đảm bảo tính toàn vẹn dữ liệu (ACID) tuyệt đối trước khi trừ tiền và xuất vé, loại bỏ hoàn toàn rủi ro double-booking nếu Redis key bị trễ hạn.
+- **Đồng bộ sơ đồ ghế Real-time (Laravel Reverb):**
+  - Trạng thái ghế (`holding`, `booked`, `available`) được phát qua WebSocket channel `showtime.{id}`. Các client đang mở cùng phòng chiếu sẽ cập nhật màu ghế tức thì mà không cần polling API.
+- **Tự động giải phóng ghế hết hạn (TTL-based Expiration):**
+  - Ghế giữ tạm có TTL 10 phút trên Redis. Sau thời gian này, lock tự hủy; cron job định kỳ quét và broadcast sự kiện giải phóng ghế về các client.
+- **Idempotent Webhook Callback:**
+  - Endpoint xử lý IPN/Webhook từ cổng thanh toán kiểm tra mã giao dịch và trạng thái đơn hàng để chống duplicate callback do network timeout hoặc retry từ phía payment gateway.
+- **Kiến trúc phân lớp chuẩn mực (Layered Architecture):**
+  - **Backend (Laravel 11, PHP 8.3):** Áp dụng Service-Repository Pattern. Controller mỏng, 100% validation chuyển về Form Request, output định dạng qua API Resources, business logic tập trung tại Service layer.
+  - **Frontend (Vue 3, TypeScript):** Composition API (`<script setup lang="ts">`), quản lý state tập trung qua Pinia stores, Tailwind CSS v4, hằng số và kiểu dữ liệu quản lý tập trung.
 
 ---
 
-## 🛠️ Tech Stack & Kiến Trúc
+## Kiến trúc hệ thống
 
-* **Backend:** PHP 8.3, Laravel 11, Laravel Reverb (WebSockets), Redis (Cache & Atomic Locks), MySQL 8.0.
-* **Frontend:** Vue 3 (Composition API, `<script setup lang="ts">`), TypeScript, Pinia, Vite, Tailwind CSS v4, Lucide Icons, Chart.js.
-* **Kiến trúc mã nguồn:** Service-Repository Pattern, Form Request Validation, API Resources, Typed Composables.
-* **Hạ tầng:** Docker Compose (Nginx, PHP-FPM, MySQL, Redis, Reverb, Queue Worker).
-
-```
-[ Khách Hàng (Vue 3 SPA) ]            [ Nhân Viên (Staff PWA Scanner) ]
-            │                                         │
-            │ (REST API)                              │ (Camera QR Scan)
-            ▼                                         ▼
-[ Nginx Reverse Proxy ] ──────────────────► [ Laravel Reverb (Port 8080) ]
-            │                                             ▲
-            ▼                                             │ (Broadcasting)
-[ Laravel 11 Backend (PHP 8.3) ] ─────────────────────────┘
-   ├── MySQL 8.0 (ACID Transactions & Row-level Locks)
-   ├── Redis 7.0 (10-min Distributed Seat Locks & Async Queues)
-   └── VNPAY / MoMo Payment Simulation (Idempotent Callback)
+```text
+[ Vue 3 Client (SPA) ]               [ Staff PWA Scanner ]
+         │                                    │
+         │ HTTP / REST API                    │ QR Camera Scan
+         ▼                                    ▼
+[ Nginx Reverse Proxy ] ──────────────► [ Laravel Reverb (WebSocket) ]
+         │                                       ▲
+         ▼                                       │ Broadcast Event
+[ Laravel 11 Backend (PHP 8.3) ] ────────────────┘
+   ├── MySQL 8.0  ──► Pessimistic Lock (SELECT FOR UPDATE) & DB Transactions
+   ├── Redis 7.0  ──► Distributed Lock (SET NX EX 600) & Async Queues
+   └── Sandbox Payment ──► Idempotent Webhook Verification
 ```
 
 ---
 
-## 💻 Hướng Dẫn Cài Đặt
+## Tính năng chính theo vai trò
 
-### Chạy bằng Docker Compose (Khuyên dùng)
+### 1. Khách hàng (Customer)
+- **Duyệt phim & Lịch chiếu:** Xem phim đang chiếu/sắp chiếu, trailer modal, lọc theo 30 cụm rạp tại 13 tỉnh thành.
+- **Sơ đồ ghế Real-time:** Phân loại ghế Standard, VIP, Couple; đếm ngược 10 phút giữ chỗ.
+- **Combo bắp nước & Voucher:** Modal chọn F&B, dải chọn nhanh 1-click voucher từ ví cá nhân, áp dụng mã giảm giá tự động.
+- **Vé điện tử & QR Code:** Nhận vé định danh qua email và lưu trong trang "Vé Của Tôi".
+- **Loyalty & Membership:** Tích lũy CinePoints sau mỗi đơn đặt vé, nâng hạng thành viên (Member, VIP, Diamond) và đổi điểm lấy voucher ưu đãi.
+- **Bảo mật tài khoản:** Đăng nhập thông thường, Google OAuth, khôi phục mật khẩu qua mã OTP 6 số gửi về email, đổi mật khẩu.
+
+### 2. Nhân viên soát vé (Staff Portal — `/staff/scanner`)
+- **Quét vé QR:** Sử dụng camera thiết bị hoặc nhập mã để kiểm tra vé vào cổng.
+- **Chống gian lận (Anti-fraud):** Cảnh báo tức thì nếu vé chưa thanh toán, vé sai cụm rạp, vé quá hạn suất chiếu hoặc vé đã quét trước đó.
+- **Kiểm tra độ tuổi:** Hiển thị nhãn tuổi theo quy định Cục Điện Ảnh (P, K, T13, T16, T18) để đối chiếu giấy tờ tùy thân.
+
+### 3. Quản trị viên (Admin Portal — `/admin`)
+- **Analytics Dashboard:** Thống kê doanh thu, tỷ lệ lấp đầy rạp, phân bổ thị phần theo thương hiệu rạp và top phim bán chạy.
+- **Tạo suất chiếu hàng loạt (Batch Generator):** Sinh lịch chiếu tự động cho nhiều rạp và nhiều khung giờ trong tuần.
+- **Quản lý dữ liệu:** CRUD Phim (đồng bộ TMDb API), Cụm rạp, Phòng chiếu & Sơ đồ ghế (ma trận ghế tùy biến), Đơn đặt vé, Voucher và Phân quyền người dùng (Admin / Staff / Customer).
+
+---
+
+## Tech Stack
+
+| Thành phần | Công nghệ |
+|---|---|
+| **Backend** | PHP 8.3, Laravel 11, Laravel Sanctum, Laravel Reverb (WebSockets) |
+| **Database & Cache** | MySQL 8.0, Redis 7.0 |
+| **Frontend** | Vue 3 (Composition API), TypeScript, Pinia, Vite, Tailwind CSS v4 |
+| **Hạ tầng & Devops** | Docker, Docker Compose, Nginx, Mailpit |
+
+---
+
+## Hướng dẫn cài đặt cục bộ
+
+### Yêu cầu môi trường
+- Docker & Docker Compose
+- Node.js >= 18 (nếu chạy frontend ngoài container)
+
+### Các bước khởi chạy
 
 1. **Clone repository:**
    ```bash
@@ -83,22 +88,22 @@ Khi các cụm rạp mở bán vé cho các phim bom tấn (như *Avengers, Nhà
    cd cinereserve
    ```
 
-2. **Cấu hình file môi trường backend:**
+2. **Cấu hình môi trường Backend:**
    ```bash
    cp backend/.env.example backend/.env
    ```
 
-3. **Khởi động Docker Containers:**
+3. **Khởi động Docker containers:**
    ```bash
    docker compose up -d --build
    ```
 
-4. **Nạp dữ liệu mẫu (Seeder):**
+4. **Khởi tạo database & nạp dữ liệu mẫu (Seeder):**
    ```bash
    docker exec cinereserve-php php artisan key:generate
    docker exec cinereserve-php php artisan migrate --seed
    ```
-   > Seeder sẽ tự động nạp 36 phim chuẩn từ TMDb, 30 cụm rạp, 70+ phòng chiếu, 16 tài khoản mẫu và các đơn vé mẫu để xem biểu đồ doanh thu.
+   *Seeder nạp sẵn danh sách phim TMDb, 30 cụm rạp, phòng chiếu, tài khoản test và dữ liệu doanh thu mẫu.*
 
 5. **Chạy Frontend:**
    ```bash
@@ -107,22 +112,32 @@ Khi các cụm rạp mở bán vé cho các phim bom tấn (như *Avengers, Nhà
    npm run dev
    ```
 
-Truy cập hệ thống tại:
-* **Frontend:** `http://localhost:5173`
-* **Backend API:** `http://localhost/api`
+Hệ thống sẵn sàng tại:
+- **Frontend:** `http://localhost:5173`
+- **Backend API:** `http://localhost:8000/api` (hoặc qua Nginx port 80)
+- **Mailpit (Xem email test/OTP):** `http://localhost:8025`
 
 ---
 
-## 🔑 Tài Khoản Trải Nghiệm Demo
+## Tài khoản thử nghiệm (Demo Accounts)
 
-| Vai trò | Email | Mật khẩu | Mục đích kiểm thử |
+| Vai trò | Email | Mật khẩu | Quyền hạn / Mục đích test |
 |---|---|---|---|
-| **Admin** | `admin@cinereserve.com` | `password` | Truy cập Trang Quản Trị `/admin` |
-| **Staff** | `staff@cinereserve.com` | `password` | Truy cập Máy Soát Vé QR `/staff/scanner` |
-| **Khách Diamond** | `diamond@cinereserve.com` | `password` | Tài khoản có 2,500 điểm CinePoints để test Đổi Quà |
-| **Khách Member** | `member@cinereserve.com` | `password` | Tài khoản khách hàng thông thường để test Đặt Vé |
+| **Admin** | `admin@cinereserve.com` | `password` | Toàn quyền quản trị tại `/admin` |
+| **Staff** | `staff@cinereserve.com` | `password` | Soát vé QR tại `/staff/scanner` |
+| **Diamond Member** | `diamond@cinereserve.com` | `password` | Khách VIP (sẵn 2,500 điểm để test đổi voucher) |
+| **Standard Member** | `member@cinereserve.com` | `password` | Khách hàng thông thường đặt vé |
 
 ---
 
-## 📄 License
-Dự án được phát hành theo giấy phép [MIT License](LICENSE).
+## Giới hạn hiện tại & Hướng phát triển (Limitations & Roadmap)
+
+- **Cổng thanh toán:** Hiện sử dụng luồng mô phỏng; có thể tích hợp SDK thực tế của VNPAY/MoMo khi có merchant credentials.
+- **Seat Map Scale:** Đang hỗ trợ tốt cho phòng chiếu dưới 300 ghế; với quy mô sân khấu/stadium lớn hơn, cần chuyển sang Canvas/WebGL rendering thay vì DOM nodes.
+- **Distributed Tracing:** Dự kiến bổ sung OpenTelemetry để theo dõi độ trễ giữa các layer (Client ➔ Reverb ➔ Redis ➔ MySQL).
+
+---
+
+## License
+
+Dự án được phân phối dưới giấy phép [MIT License](LICENSE).
