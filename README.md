@@ -70,7 +70,7 @@ Hệ thống đặt vé xem phim trực tuyến thời gian thực (Real-time Ci
 | **Backend** | PHP 8.3, Laravel 11, Laravel Sanctum, Laravel Reverb (WebSockets) |
 | **Database & Cache** | MySQL 8.0, Redis 7.0 |
 | **Frontend** | Vue 3 (Composition API), TypeScript, Pinia, Vite, Tailwind CSS v4 |
-| **Hạ tầng & Devops** | Docker, Docker Compose, Nginx, Mailpit |
+| **Hạ tầng & Devops** | Docker, Docker Compose, Nginx |
 
 ---
 
@@ -88,24 +88,66 @@ Hệ thống đặt vé xem phim trực tuyến thời gian thực (Real-time Ci
    cd cinereserve
    ```
 
-2. **Cấu hình môi trường Backend:**
+2. **Cấu hình file môi trường Backend:**
    ```bash
    cp backend/.env.example backend/.env
    ```
 
-3. **Khởi động Docker containers:**
+3. **Cấu hình tích hợp bên thứ ba (Third-party Services):**
+
+   #### 3.1. Lấy TMDb API Key (Đồng bộ phim)
+   Đăng ký tài khoản tại [themoviedb.org](https://www.themoviedb.org/), vào **Settings → API** để tạo Developer API Key (v3 auth hoặc v4 read access token) và cập nhật vào `backend/.env`:
+   ```env
+   TMDB_API_KEY=your_tmdb_api_key_here
+   TMDB_READ_TOKEN=your_tmdb_read_access_token_here
+   ```
+
+   #### 3.2. Cấu hình SMTP gửi Email & OTP
+   Cấu hình thông tin máy chủ SMTP (ví dụ Gmail SMTP: Bật 2FA và tạo Mật khẩu ứng dụng tại **Google Account → Security → App Passwords**):
+   ```env
+   MAIL_MAILER=smtp
+   MAIL_HOST=smtp.gmail.com
+   MAIL_PORT=587
+   MAIL_USERNAME=your_email@gmail.com
+   MAIL_PASSWORD=your_app_password_here
+   MAIL_ENCRYPTION=tls
+   MAIL_FROM_ADDRESS=your_email@gmail.com
+   MAIL_FROM_NAME="CineReserve Cinema"
+   ```
+
+   #### 3.3. Cấu hình Google OAuth Login
+   Truy cập [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services → Credentials**:
+   1. Tạo **OAuth 2.0 Client ID** (Application type: Web application).
+   2. Thêm **Authorized JavaScript origins**: `http://localhost:5173`.
+   3. Thêm **Authorized redirect URIs**: `http://localhost:8000/api/auth/google/callback`.
+   4. Điền Client ID & Secret vào `backend/.env`:
+   ```env
+   GOOGLE_CLIENT_ID=your_google_client_id_here
+   GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+   GOOGLE_REDIRECT_URI=http://localhost:8000/api/auth/google/callback
+   ```
+   *Lưu ý: Đảm bảo provider `google` đã được khai báo trong `backend/config/services.php`:*
+   ```php
+   'google' => [
+       'client_id' => env('GOOGLE_CLIENT_ID'),
+       'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+       'redirect' => env('GOOGLE_REDIRECT_URI'),
+   ],
+   ```
+
+4. **Khởi động Docker containers:**
    ```bash
    docker compose up -d --build
    ```
 
-4. **Khởi tạo database & nạp dữ liệu mẫu (Seeder):**
+5. **Khởi tạo database & nạp dữ liệu mẫu (Seeder):**
    ```bash
    docker exec cinereserve-php php artisan key:generate
    docker exec cinereserve-php php artisan migrate --seed
    ```
    *Seeder nạp sẵn danh sách phim TMDb, 30 cụm rạp, phòng chiếu, tài khoản test và dữ liệu doanh thu mẫu.*
 
-5. **Chạy Frontend:**
+6. **Chạy Frontend:**
    ```bash
    cd frontend
    npm install
@@ -115,7 +157,6 @@ Hệ thống đặt vé xem phim trực tuyến thời gian thực (Real-time Ci
 Hệ thống sẵn sàng tại:
 - **Frontend:** `http://localhost:5173`
 - **Backend API:** `http://localhost:8000/api` (hoặc qua Nginx port 80)
-- **Mailpit (Xem email test/OTP):** `http://localhost:8025`
 
 ---
 
@@ -134,7 +175,7 @@ Hệ thống sẵn sàng tại:
 
 - **Cổng thanh toán:** Hiện sử dụng luồng mô phỏng; có thể tích hợp SDK thực tế của VNPAY/MoMo khi có merchant credentials.
 - **Seat Map Scale:** Đang hỗ trợ tốt cho phòng chiếu dưới 300 ghế; với quy mô sân khấu/stadium lớn hơn, cần chuyển sang Canvas/WebGL rendering thay vì DOM nodes.
-- **Distributed Tracing:** Dự kiến bổ sung OpenTelemetry để theo dõi độ trễ giữa các layer (Client ➔ Reverb ➔ Redis ➔ MySQL).
+- **Logging & Observability:** Hiện tại logging còn ở mức cơ bản (Laravel log driver); hướng phát triển tiếp theo là bổ sung structured logging và tracing để theo dõi độ trễ giữa các layer (Client → Reverb → Redis → MySQL) khi hệ thống scale lớn hơn.
 
 ---
 
