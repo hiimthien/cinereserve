@@ -190,6 +190,15 @@
                 <span>Vé Đã Đặt Của Tôi</span>
               </router-link>
 
+              <!-- Change Password Button -->
+              <button
+                @click="() => { isUserMenuOpen = false; authStore.openChangePasswordModal(); }"
+                class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition-colors cursor-pointer text-left"
+              >
+                <KeyRound class="w-4 h-4 text-slate-400" />
+                <span>Đổi Mật Khẩu</span>
+              </button>
+
               <!-- Logout Button -->
               <div class="pt-1 border-t border-white/5">
                 <button
@@ -280,17 +289,11 @@
         </router-link>
       </div>
     </div>
-
-    <!-- Global Auth Modal with Vee-Validate -->
-    <AuthModal />
-
-    <!-- Global Loyalty & Reward Center Modal -->
-    <LoyaltyRewardModal />
   </header>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { 
   Clapperboard, 
   Building2, 
@@ -303,14 +306,12 @@ import {
   QrCode,
   Gift,
   ChevronDown,
-  LogOut
+  LogOut,
+  KeyRound
 } from 'lucide-vue-next';
 
 import { useBookingStore } from '../../stores/bookingStore';
 import { useAuthStore } from '../../stores/authStore';
-
-const AuthModal = defineAsyncComponent(() => import('./AuthModal.vue'));
-const LoyaltyRewardModal = defineAsyncComponent(() => import('./LoyaltyRewardModal.vue'));
 
 const store = useBookingStore();
 const authStore = useAuthStore();

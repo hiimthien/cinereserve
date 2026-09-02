@@ -29,6 +29,18 @@ class ShowtimeService
     }
 
     /**
+     * Lấy chi tiết suất chiếu kèm quan hệ
+     */
+    public function findShowtime(int $id): Showtime
+    {
+        $showtime = $this->showtimeRepository->findById($id);
+        if (!$showtime) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException("Không tìm thấy suất chiếu với ID {$id}");
+        }
+        return $showtime;
+    }
+
+    /**
      * Lấy danh sách suất chiếu theo phim
      */
     public function getShowtimesByMovieId(int $movieId): Collection

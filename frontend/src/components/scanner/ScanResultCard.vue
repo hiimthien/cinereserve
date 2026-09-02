@@ -63,7 +63,7 @@
       <div class="grid grid-cols-2 gap-3 text-xs">
         <div class="p-3 rounded-2xl bg-white/5 space-y-0.5">
           <span class="text-[10px] text-slate-500 font-bold uppercase block">Ghế Khách Đặt</span>
-          <span class="font-bold text-cinema-accent">{{ Array.isArray(result.ticket.seats) ? result.ticket.seats.join(', ') : result.ticket.seats }}</span>
+          <span class="font-bold text-cinema-accent">{{ formatSeats(result.ticket.seats) }}</span>
         </div>
         <div class="p-3 rounded-2xl bg-white/5 space-y-0.5 text-right">
           <span class="text-[10px] text-slate-500 font-bold uppercase block">Khách Hàng</span>
@@ -99,4 +99,15 @@ defineEmits<{
 const ageInfo = computed(() => {
   return getAgeRatingInfo(props.result?.ticket?.age_rating || 'T18');
 });
+
+const formatSeats = (seats: any) => {
+  if (!seats) return '';
+  if (Array.isArray(seats)) {
+    return seats
+      .map(s => (typeof s === 'object' ? `${s.row || ''}${s.number || ''}`.trim() : String(s)))
+      .filter(Boolean)
+      .join(', ');
+  }
+  return String(seats);
+};
 </script>

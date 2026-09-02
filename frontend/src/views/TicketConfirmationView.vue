@@ -127,15 +127,17 @@
           Tải vé PDF điện tử
         </BaseButton>
 
-        <!-- Direct Email Inbox Button -->
-        <a 
-          href="https://mail.google.com" 
-          target="_blank"
-          class="w-full py-3.5 rounded-2xl bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 font-bold text-xs border border-cyan-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+        <BaseButton 
+          variant="secondary"
+          size="md"
+          block
+          @click="router.push('/my-tickets')"
         >
-          <Mail class="w-4 h-4" />
-          <span>Mở hộp thư Gmail xác nhận vé ({{ ticket?.user_email || 'caoluongthienk1@gmail.com' }})</span>
-        </a>
+          <template #prefix>
+            <Ticket class="w-4 h-4 text-cinema-accent" />
+          </template>
+          Xem trong "Vé Của Tôi"
+        </BaseButton>
 
         <BaseButton 
           variant="secondary"
@@ -166,7 +168,6 @@ import {
   Clock, 
   QrCode, 
   Download, 
-  Mail, 
   Home 
 } from 'lucide-vue-next';
 import { useBookingStore } from '../stores/bookingStore';

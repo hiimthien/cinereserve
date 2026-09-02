@@ -88,3 +88,43 @@ export const CURATED_GENRES: CuratedGenre[] = [
   { id: 'romance', label: 'Lãng Mạn', iconName: 'Heart', keywords: ['romance', 'lãng mạn', 'tình cảm'] },
   { id: 'family', label: 'Gia Đình', iconName: 'Users', keywords: ['family', 'gia đình'] },
 ];
+
+export interface LoyaltyRewardItem {
+  id: string;
+  points_required: number;
+  title: string;
+  description: string;
+  badge: string;
+}
+
+export const DEFAULT_LOYALTY_REWARDS: LoyaltyRewardItem[] = [
+  { id: 'voucher_20k', points_required: 50, title: 'Voucher Giảm 20.000 đ', description: 'Áp dụng cho mọi đơn đặt vé từ 95.000 đ', badge: 'Phổ biến' },
+  { id: 'free_snack', points_required: 100, title: 'Miễn Phí 1 Solo Combo Bắp Nước', description: 'Tặng 1 Bắp rang bơ nóng hổi + 1 Nước ngọt lớn tại quầy', badge: 'Bắp Nước Free' },
+  { id: 'voucher_50k', points_required: 150, title: 'Voucher Giảm 50.000 đ', description: 'Áp dụng cho đơn hàng tổng từ 150.000 đ trở lên', badge: 'Tiết kiệm lớn' },
+  { id: 'free_ticket', points_required: 250, title: 'Miễn Phí 1 Vé Xem Phim Tiêu Chuẩn', description: 'Miễn phí 100% 1 vé xem phim 2D/3D bất kỳ trị giá 95.000 đ', badge: 'Vé Miễn Phí' },
+  { id: 'vip_couple_pass', points_required: 400, title: 'Gói Trọn Gói Siêu VIP Đôi', description: '2 Vé Phim Ghế VIP/Couple + 1 Couple Combo Bắp Nước lớn', badge: 'Đặc Quyền VVIP' },
+];
+
+export interface SnackComboItem {
+  id: number | string;
+  name: string;
+  description: string;
+  price: number;
+  image_url?: string;
+  badge?: string;
+}
+
+export const DEFAULT_SNACK_COMBOS: SnackComboItem[] = [
+  { id: 1, name: 'Solo Combo', description: '1 Bắp ngọt nóng hổi (60oz) + 1 Ly nước ngọt có ga (22oz)', price: 69000, badge: 'Tiết Kiệm', image_url: 'https://images.unsplash.com/photo-1578849278619-e73505e9610f?w=300' },
+  { id: 2, name: 'Couple Combo', description: '1 Bắp phô mai size L (85oz) + 2 Ly nước ngọt (32oz)', price: 109000, badge: 'Phổ Biến Nhất', image_url: 'https://images.unsplash.com/photo-1585647347483-22b66260dfff?w=300' },
+  { id: 3, name: 'Party VIP Combo', description: '2 Bắp Caramel lớn + 4 Nước + 1 Khoai tây chiên', price: 169000, badge: 'Ưu Đãi Nhóm', image_url: 'https://images.unsplash.com/photo-1505686994434-e3cc5abf1330?w=300' },
+  { id: 4, name: 'Nachos Cheese Combo', description: '1 Khay bánh bắp sốt phô mai & salsa + 1 Nước ngọt lớn', price: 89000, badge: 'Món Mới', image_url: 'https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?w=300' },
+];
+
+export const ADMIN_BOOKING_STATUS_TABS = [
+  { label: 'Tất Cả Đơn', value: 'all' },
+  { label: '⏳ Chưa Soát Vé', value: 'confirmed' },
+  { label: '✅ Đã Check-in', value: 'checked_in' },
+  { label: '❌ Đã Hủy', value: 'cancelled' },
+] as const;
+

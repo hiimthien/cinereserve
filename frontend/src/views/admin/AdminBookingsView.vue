@@ -184,6 +184,7 @@ import BaseSelect from '../../components/base/BaseSelect.vue';
 import BaseBadge from '../../components/base/BaseBadge.vue';
 import BaseButton from '../../components/base/BaseButton.vue';
 import BasePagination from '../../components/base/BasePagination.vue';
+import { ADMIN_BOOKING_STATUS_TABS } from '../../constants';
 import { useToast } from '../../composables/useToast';
 
 const toast = useToast();
@@ -199,12 +200,7 @@ const selectedCinemaId = ref<string | number>('all');
 const searchQuery = ref('');
 const isLoading = ref(false);
 
-const statusTabs = [
-  { label: 'Tất Cả Đơn', value: 'all' },
-  { label: '⏳ Chưa Soát Vé', value: 'confirmed' },
-  { label: '✅ Đã Check-in', value: 'checked_in' },
-  { label: '❌ Đã Hủy', value: 'cancelled' },
-];
+const statusTabs = ADMIN_BOOKING_STATUS_TABS;
 
 const selectTab = (status: string) => {
   activeStatus.value = status;

@@ -37,12 +37,12 @@
           
           <p class="text-xs text-cinema-muted flex items-center gap-1.5 truncate">
             <Building2 class="w-3.5 h-3.5 text-cinema-accent shrink-0" />
-            <span class="truncate">{{ ticket.cinema?.name || 'Cụm Rạp CineReserve' }}</span>
+            <span class="truncate">{{ ticket.cinema?.name || ticket.showtime?.cinema?.name || 'Cụm Rạp CineReserve' }}</span>
           </p>
 
           <p class="text-[11px] text-slate-400 flex items-center gap-1.5">
             <Clock class="w-3.5 h-3.5 text-cinema-gold shrink-0" />
-            <span>{{ ticket.showtime?.start_time || '19:30' }} • {{ ticket.showtime?.date || 'Hôm nay' }}</span>
+            <span>{{ ticket.showtime?.start_time || '19:30' }} • {{ formatShowDate(ticket.showtime?.show_date || ticket.showtime?.date) }}</span>
           </p>
         </div>
       </div>
@@ -51,7 +51,7 @@
       <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5 text-xs">
         <div class="space-y-0.5">
           <span class="text-[10px] text-slate-500 font-bold uppercase block">Phòng Chiếu</span>
-          <span class="font-bold text-white">{{ ticket.room?.name || 'Phòng 01' }}</span>
+          <span class="font-bold text-white">{{ ticket.room?.name || ticket.showtime?.room?.name || 'Phòng 01' }}</span>
         </div>
 
         <div class="space-y-0.5 text-right">
@@ -59,10 +59,10 @@
           <div class="flex gap-1 justify-end flex-wrap">
             <span 
               v-for="s in ticket.seats" 
-              :key="s" 
+              :key="getSeatKey(s)" 
               class="font-mono font-bold text-cinema-accent bg-cinema-accent/10 px-1.5 py-0.5 rounded text-xs border border-cinema-accent/30"
             >
-              {{ s }}
+              {{ getSeatLabel(s) }}
             </span>
           </div>
         </div>
@@ -110,6 +110,32 @@ const formatBookingDate = (dateStr?: string) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+const formatShowDate = (dateStr?: string) => {
+  if (!dateStr) return 'Hôm nay';
+  const clean = dateStr.split('T')[0].split(' ')[0];
+  const parts = clean.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return clean;
+};
+
+const getSeatLabel = (s: any) => {
+  if (!s) return '';
+  if (typeof s === 'object') {
+    return `${s.row || ''}${s.number || ''}`.trim() || 'Ghế';
+  }
+  return String(s);
+};
+
+const getSeatKey = (s: any) => {
+  if (!s) return Math.random();
+  if (typeof s === 'object') {
+    return s.id || `${s.row}-${s.number}`;
+  }
+  return String(s);
 };
 
 const getStatusBadgeVariant = (status: string, checkInStatus?: string) => {

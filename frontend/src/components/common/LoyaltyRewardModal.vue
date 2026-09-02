@@ -1,10 +1,10 @@
 <template>
   <BaseModal 
     v-model="authStore.showRewardModal"
-    title="CineReserve Loyalty Club • Đổi Thưởng"
+    title="CineReserve Loyalty Club & Ví Voucher"
     maxWidth="lg"
   >
-    <div class="space-y-6 p-1">
+    <div class="space-y-5 p-1">
       
       <!-- Tier Card & Points Overview Banner -->
       <div class="relative overflow-hidden p-6 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-amber-950/40 border border-amber-500/30 shadow-2xl space-y-4">
@@ -46,8 +46,31 @@
         </div>
       </div>
 
+      <!-- Tab Navigation -->
+      <div class="flex rounded-2xl bg-slate-900/80 p-1 border border-white/5">
+        <button 
+          @click="activeTab = 'redeem'"
+          type="button"
+          class="flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+          :class="activeTab === 'redeem' ? 'bg-cinema-accent text-white shadow-glow-accent' : 'text-slate-400 hover:text-white'"
+        >
+          <Gift class="w-4 h-4" />
+          <span>Đổi Điểm Thưởng</span>
+        </button>
+
+        <button 
+          @click="activeTab = 'wallet'"
+          type="button"
+          class="flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+          :class="activeTab === 'wallet' ? 'bg-cinema-accent text-white shadow-glow-accent' : 'text-slate-400 hover:text-white'"
+        >
+          <Ticket class="w-4 h-4" />
+          <span>Ví Voucher Của Tôi ({{ myVouchers.length }})</span>
+        </button>
+      </div>
+
       <!-- Success Notification Banner when redeemed -->
-      <div v-if="successMessage" class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between shadow-glow-green">
+      <div v-if="successMessage" class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between shadow-glow-green animate-in fade-in duration-200">
         <div class="flex items-center gap-2">
           <CheckCircle2 class="w-5 h-5 text-emerald-400 shrink-0" />
           <span>{{ successMessage }}</span>
@@ -61,8 +84,8 @@
         <span>{{ errorMessage }}</span>
       </div>
 
-      <!-- Rewards Catalog List -->
-      <div class="space-y-3">
+      <!-- TAB 1: Rewards Catalog List -->
+      <div v-if="activeTab === 'redeem'" class="space-y-3">
         <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
           <Gift class="w-4 h-4 text-cinema-accent" />
           <span>Danh Sách Ưu Đãi Đổi Điểm Thưởng:</span>
@@ -107,15 +130,76 @@
         </div>
       </div>
 
+      <!-- TAB 2: My Vouchers Wallet -->
+      <div v-else class="space-y-3">
+        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+          <span class="flex items-center gap-1.5">
+            <Ticket class="w-4 h-4 text-emerald-400" />
+            <span>Mã Ưu Đãi Đang Sở Hữu:</span>
+          </span>
+          <button 
+            @click="fetchMyVouchers" 
+            class="text-[11px] text-cinema-accent hover:underline flex items-center gap-1 cursor-pointer"
+          >
+            <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': isFetchingVouchers }" />
+            <span>Làm mới</span>
+          </button>
+        </h4>
+
+        <!-- Empty Wallet State -->
+        <div v-if="myVouchers.length === 0" class="p-8 rounded-2xl bg-cinema-card/40 border border-white/5 text-center space-y-2">
+          <Ticket class="w-8 h-8 text-slate-600 mx-auto" />
+          <p class="text-xs text-white font-bold">Bạn chưa có voucher nào trong ví</p>
+          <p class="text-[11px] text-cinema-muted">Dùng điểm CinePoints tích lũy để đổi voucher giảm giá xem phim ngay!</p>
+          <button 
+            @click="activeTab = 'redeem'"
+            class="mt-2 px-3 py-1.5 rounded-xl bg-cinema-accent hover:bg-rose-600 text-white text-xs font-bold transition-colors cursor-pointer"
+          >
+            Đổi Điểm Ngay
+          </button>
+        </div>
+
+        <!-- Vouchers Grid -->
+        <div v-else class="space-y-2.5 max-h-[340px] overflow-y-auto pr-1">
+          <div 
+            v-for="v in myVouchers" 
+            :key="v.id || v.code"
+            class="p-4 rounded-2xl bg-slate-900/90 border border-white/10 hover:border-emerald-500/40 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 group"
+          >
+            <div class="space-y-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="font-mono font-black text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase tracking-wider">
+                  {{ v.code }}
+                </span>
+                <span class="text-xs font-extrabold text-white truncate">{{ v.title }}</span>
+              </div>
+              <p class="text-[11px] text-cinema-muted line-clamp-1">{{ v.description }}</p>
+              <p class="text-[10px] text-amber-400 font-medium">
+                Mức giảm: <strong>{{ formatVnd(v.discount_value) }}</strong> • Hạn: {{ formatDate(v.expires_at) }}
+              </p>
+            </div>
+
+            <button 
+              @click="copyVoucherCode(v.code)"
+              class="px-3 py-2 rounded-xl bg-white/10 hover:bg-emerald-500/20 text-slate-200 hover:text-emerald-300 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 w-full sm:w-auto justify-center"
+            >
+              <Copy class="w-3.5 h-3.5" />
+              <span>Sao Chép</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
     </div>
   </BaseModal>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { Sparkles, Gift, CheckCircle2, AlertCircle, Loader2 } from 'lucide-vue-next';
+import { ref, onMounted, watch } from 'vue';
+import { Sparkles, Gift, CheckCircle2, AlertCircle, Loader2, Ticket, Copy, RefreshCw } from 'lucide-vue-next';
 import { useAuthStore } from '../../stores/authStore';
 import { useToast } from '../../composables/useToast';
+import { DEFAULT_LOYALTY_REWARDS, type LoyaltyRewardItem } from '../../constants';
 import BaseModal from '../base/BaseModal.vue';
 import BaseBadge from '../base/BaseBadge.vue';
 import api from '../../services/api';
@@ -123,18 +207,57 @@ import api from '../../services/api';
 const authStore = useAuthStore();
 const toast = useToast();
 
+const activeTab = ref<'redeem' | 'wallet'>('redeem');
 const isRedeeming = ref(false);
+const isFetchingVouchers = ref(false);
 const activeRedeemId = ref<string | null>(null);
 const successMessage = ref('');
 const errorMessage = ref('');
 
-const rewardList = ref([
-  { id: 'voucher_20k', points_required: 50, title: 'Voucher Giảm 20.000 đ', description: 'Áp dụng cho mọi đơn đặt vé từ 95.000 đ', badge: 'Phổ biến' },
-  { id: 'free_snack', points_required: 100, title: 'Miễn Phí 1 Solo Combo Bắp Nước', description: 'Tặng 1 Bắp rang bơ nóng hổi + 1 Nước ngọt lớn tại quầy', badge: 'Bắp Nước Free' },
-  { id: 'voucher_50k', points_required: 150, title: 'Voucher Giảm 50.000 đ', description: 'Áp dụng cho đơn hàng tổng từ 150.000 đ trở lên', badge: 'Tiết kiệm lớn' },
-  { id: 'free_ticket', points_required: 250, title: 'Miễn Phí 1 Vé Xem Phim Tiêu Chuẩn', description: 'Miễn phí 100% 1 vé xem phim 2D/3D bất kỳ trị giá 95.000 đ', badge: 'Vé Miễn Phí' },
-  { id: 'vip_couple_pass', points_required: 400, title: 'Gói Trọn Gói Siêu VIP Đôi', description: '2 Vé Phim Ghế VIP/Couple + 1 Couple Combo Bắp Nước lớn', badge: 'Đặc Quyền VVIP' },
-]);
+const rewardList = ref<LoyaltyRewardItem[]>([...DEFAULT_LOYALTY_REWARDS]);
+const myVouchers = ref<any[]>([]);
+
+const formatVnd = (val: number) => {
+  if (!val) return '0 đ';
+  return new Intl.NumberFormat('vi-VN').format(val) + ' đ';
+};
+
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return 'Vô thời hạn';
+  const clean = dateStr.split('T')[0].split(' ')[0];
+  const parts = clean.split('-');
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return clean;
+};
+
+const copyVoucherCode = async (code: string) => {
+  try {
+    await navigator.clipboard.writeText(code);
+    toast.success(`Đã sao chép mã ${code} vào bộ nhớ tạm!`, 'Sao Chép Thành Công');
+  } catch {
+    toast.info(`Mã voucher của bạn: ${code}`, 'Mã Voucher');
+  }
+};
+
+const fetchMyVouchers = async () => {
+  if (!authStore.user) return;
+  isFetchingVouchers.value = true;
+  try {
+    const res = await api.get('/loyalty/my-vouchers', {
+      params: {
+        user_id: authStore.user.id,
+        email: authStore.user.email,
+      }
+    });
+    if (res.data?.data) {
+      myVouchers.value = res.data.data;
+    }
+  } catch (err) {
+    console.warn('Could not fetch user vouchers', err);
+  } finally {
+    isFetchingVouchers.value = false;
+  }
+};
 
 const handleRedeem = async (reward: any) => {
   if (!authStore.user) {
@@ -158,9 +281,14 @@ const handleRedeem = async (reward: any) => {
         authStore.user.points = res.data.data.remaining_points;
         localStorage.setItem('cinereserve_user', JSON.stringify(authStore.user));
       }
-      const msg = `Đổi thành công mã ${res.data.data.voucher.code}! Đã gửi về email ${authStore.user.email}.`;
+      const voucherCode = res.data.data.voucher.code;
+      const msg = `Đổi thành công mã ${voucherCode}! Đã thêm vào Ví Voucher của bạn.`;
       successMessage.value = msg;
       toast.success(msg, 'Đổi Quà Thành Công');
+      
+      // Auto refresh user vouchers and switch to wallet tab
+      await fetchMyVouchers();
+      activeTab.value = 'wallet';
     }
   } catch (err: any) {
     const errText = err.response?.data?.message || 'Đổi điểm thưởng không thành công.';
@@ -172,14 +300,22 @@ const handleRedeem = async (reward: any) => {
   }
 };
 
+watch(() => authStore.showRewardModal, (isOpen) => {
+  if (isOpen && authStore.isAuthenticated) {
+    fetchMyVouchers();
+  }
+});
+
 onMounted(async () => {
   try {
     const res = await api.get('/loyalty/rewards');
-    if (res.data?.data) {
+    if (res.data?.data && res.data.data.length > 0) {
       rewardList.value = res.data.data;
     }
-  } catch (e) {
-    // Keep fallback list
+  } catch (e) {}
+
+  if (authStore.isAuthenticated) {
+    fetchMyVouchers();
   }
 });
 </script>

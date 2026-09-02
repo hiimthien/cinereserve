@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\AdminSeatMatrixRequest;
 use App\Services\RoomService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class AdminRoomController extends Controller
 {
@@ -47,21 +47,17 @@ class AdminRoomController extends Controller
     /**
      * Cấu hình lại ma trận ghế (Standard, VIP, Couple) cho phòng chiếu
      */
-    public function updateSeatMatrix(Request $request, int $roomId): JsonResponse
+    public function updateSeatMatrix(AdminSeatMatrixRequest $request, int $roomId): JsonResponse
     {
-        $validated = $request->validate([
-            'total_rows' => 'required|integer|min:4|max:15',
-            'seats_per_row' => 'required|integer|min:6|max:20',
-            'vip_rows' => 'nullable|array',
-            'couple_rows' => 'nullable|array',
-        ]);
-
-        $room = $this->roomService->updateSeatMatrix($roomId, $validated);
+        $room = $this->roomService->updateSeatMatrix($roomId, $request->validated());
 
         return response()->json([
             'success' => true,
-            'message' => "Cấu hình ma trận ghế thành công cho phòng [{$room->name}]!",
-            'data' => $room,
+            'message' => "Đã cập nhật sơ đồ ghế phòng chiếu [{$room->name}] thành công!",
+            'data' => [
+                'room' => $room,
+                'seats_count' => $room->seats()->count(),
+            ],
         ]);
     }
 }

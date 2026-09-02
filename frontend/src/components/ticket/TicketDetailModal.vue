@@ -22,10 +22,12 @@
             </BaseBadge>
           </div>
           <h3 class="text-base font-black text-white leading-tight truncate">{{ ticket.movie?.title }}</h3>
-          <p class="text-xs text-cinema-muted truncate">{{ ticket.cinema?.name }} • {{ ticket.room?.name }}</p>
+          <p class="text-xs text-cinema-muted truncate">
+            {{ ticket.cinema?.name || ticket.showtime?.cinema?.name || 'Cụm Rạp CineReserve' }} • {{ ticket.room?.name || ticket.showtime?.room?.name || 'Phòng 01' }}
+          </p>
           <p class="text-xs text-amber-300 font-bold flex items-center gap-1.5 pt-0.5">
             <Clock class="w-3.5 h-3.5" />
-            <span>{{ ticket.showtime?.start_time }} - {{ ticket.showtime?.date }}</span>
+            <span>{{ ticket.showtime?.start_time }} • {{ formatShowDate(ticket.showtime?.show_date || ticket.showtime?.date) }}</span>
           </p>
         </div>
       </div>
@@ -34,7 +36,7 @@
       <div class="p-6 rounded-3xl bg-slate-950/90 border border-white/10 text-center space-y-3 shadow-2xl">
         <div class="inline-block p-3 rounded-2xl bg-white shadow-glow-accent">
           <img 
-            :src="`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=CINERESERVE-${ticket.booking_code}`" 
+            :src="ticket.qr_code || `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=CINERESERVE-${ticket.booking_code}`" 
             :alt="ticket.booking_code"
             class="w-36 h-36 mx-auto block"
           />
@@ -47,6 +49,40 @@
           <CheckCircle2 class="w-3.5 h-3.5 text-emerald-400" />
           <span>Đưa mã QR này cho nhân viên tại quầy soát vé rạp</span>
         </p>
+      </div>
+
+      <!-- Seats & Room Strip -->
+      <div class="p-3.5 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between gap-3 text-xs">
+        <div class="space-y-0.5">
+          <span class="text-[10px] text-slate-500 font-bold uppercase block">Phòng Chiếu</span>
+          <span class="font-bold text-white">{{ ticket.room?.name || ticket.showtime?.room?.name || 'Phòng Chiếu' }}</span>
+        </div>
+        <div class="space-y-0.5 text-right">
+          <span class="text-[10px] text-slate-500 font-bold uppercase block">Danh Sách Ghế</span>
+          <div class="flex gap-1 justify-end flex-wrap">
+            <span 
+              v-for="s in ticket.seats" 
+              :key="getSeatKey(s)" 
+              class="font-mono font-bold text-cinema-accent bg-cinema-accent/10 px-2 py-0.5 rounded text-xs border border-cinema-accent/30"
+            >
+              {{ getSeatLabel(s) }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Selected Combos list (if any) -->
+      <div v-if="ticket.combos && ticket.combos.length > 0" class="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-1.5">
+        <span class="text-[10px] text-amber-400 font-bold uppercase block">Bắp Nước Đã Mua Kèm</span>
+        <div class="flex flex-wrap gap-1.5">
+          <span 
+            v-for="cb in ticket.combos" 
+            :key="cb.id || cb.name"
+            class="px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-200 text-xs font-semibold"
+          >
+            🍿 {{ cb.name }} (x{{ cb.quantity }})
+          </span>
+        </div>
       </div>
 
       <!-- Details Grid -->
@@ -100,6 +136,32 @@ defineEmits<{
 }>();
 
 const toast = useToast();
+
+const formatShowDate = (dateStr?: string) => {
+  if (!dateStr) return 'Hôm nay';
+  const clean = dateStr.split('T')[0].split(' ')[0];
+  const parts = clean.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return clean;
+};
+
+const getSeatLabel = (s: any) => {
+  if (!s) return '';
+  if (typeof s === 'object') {
+    return `${s.row || ''}${s.number || ''}`.trim() || 'Ghế';
+  }
+  return String(s);
+};
+
+const getSeatKey = (s: any) => {
+  if (!s) return Math.random();
+  if (typeof s === 'object') {
+    return s.id || `${s.row}-${s.number}`;
+  }
+  return String(s);
+};
 
 const downloadTicketPdf = () => {
   if (!props.ticket) return;

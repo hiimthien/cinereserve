@@ -1,13 +1,13 @@
 <template>
   <BaseModal 
     v-model="authStore.showAuthModal"
-    :title="authStore.authTab === 'login' ? 'Đăng Nhập CineReserve' : 'Đăng Ký Thành Viên Mới'"
+    :title="modalTitle"
     maxWidth="md"
   >
     <div class="space-y-5 p-1">
       
-      <!-- Top Tab Switcher -->
-      <div class="flex rounded-2xl bg-slate-900/80 p-1 border border-white/5">
+      <!-- Top Tab Switcher (Only in Login & Register mode) -->
+      <div v-if="authStore.authTab !== 'forgot'" class="flex rounded-2xl bg-slate-900/80 p-1 border border-white/5">
         <button
           @click="switchTab('login')"
           type="button"
@@ -26,8 +26,24 @@
         </button>
       </div>
 
-      <!-- Google Sign-In / Register Button -->
+      <!-- Back to Login header when in Forgot mode -->
+      <div v-else class="flex items-center justify-between pb-1">
+        <button 
+          @click="switchTab('login')" 
+          type="button"
+          class="flex items-center gap-1.5 text-xs font-bold text-cinema-muted hover:text-white transition-colors cursor-pointer"
+        >
+          <ArrowLeft class="w-4 h-4" />
+          <span>Quay lại Đăng nhập</span>
+        </button>
+        <span class="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+          Khôi Phục Mật Khẩu
+        </span>
+      </div>
+
+      <!-- Google Sign-In / Register Button (Only in Login & Register mode) -->
       <button 
+        v-if="authStore.authTab !== 'forgot'"
         @click="handleGoogleSignIn"
         type="button"
         class="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 text-xs font-bold transition-all cursor-pointer shadow-md hover:shadow-lg group"
@@ -41,8 +57,8 @@
         <span>{{ authStore.authTab === 'login' ? 'Đăng nhập với Google' : 'Đăng ký nhanh với Google' }}</span>
       </button>
 
-      <!-- Divider -->
-      <div class="relative flex items-center justify-center my-3">
+      <!-- Divider (Only in Login & Register mode) -->
+      <div v-if="authStore.authTab !== 'forgot'" class="relative flex items-center justify-center my-3">
         <div class="absolute inset-0 flex items-center">
           <div class="w-full border-t border-white/10"></div>
         </div>
@@ -63,7 +79,7 @@
         <span>{{ authStore.errorMessage }}</span>
       </div>
 
-      <!-- Login Form with Vee-Validate -->
+      <!-- 1. Login Form -->
       <form v-if="authStore.authTab === 'login'" @submit="onLoginSubmit" class="space-y-4" autocomplete="off">
         <div class="space-y-1 w-full">
           <label class="block text-xs font-semibold text-cinema-muted">Địa chỉ Email *</label>
@@ -78,7 +94,16 @@
         </div>
 
         <div class="space-y-1 w-full">
-          <label class="block text-xs font-semibold text-cinema-muted">Mật khẩu *</label>
+          <div class="flex items-center justify-between">
+            <label class="block text-xs font-semibold text-cinema-muted">Mật khẩu *</label>
+            <button 
+              type="button" 
+              @click="switchTab('forgot')"
+              class="text-[11px] font-bold text-cinema-accent hover:underline cursor-pointer"
+            >
+              Quên mật khẩu?
+            </button>
+          </div>
           <input 
             v-model="loginPassword"
             type="password"
@@ -100,8 +125,8 @@
         </BaseButton>
       </form>
 
-      <!-- Register Form with Vee-Validate -->
-      <form v-else @submit="onRegisterSubmit" class="space-y-4" autocomplete="off">
+      <!-- 2. Register Form -->
+      <form v-else-if="authStore.authTab === 'register'" @submit="onRegisterSubmit" class="space-y-4" autocomplete="off">
         <div class="space-y-1 w-full">
           <label class="block text-xs font-semibold text-cinema-muted">Họ và tên *</label>
           <input 
@@ -166,20 +191,170 @@
         </BaseButton>
       </form>
 
+      <!-- 3. Forgot Password / OTP Flow -->
+      <div v-else class="space-y-4">
+        <!-- Step 1: Send OTP -->
+        <form v-if="forgotStep === 1" @submit.prevent="handleSendOtp" class="space-y-4">
+          <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-white/5 space-y-1">
+            <p class="text-xs text-white font-bold">Khôi phục bằng Email</p>
+            <p class="text-[11px] text-cinema-muted">
+              Nhập email tài khoản của bạn. Chúng tôi sẽ gửi mã xác nhận OTP 6 số để tạo mật khẩu mới.
+            </p>
+          </div>
+
+          <div class="space-y-1">
+            <label class="block text-xs font-semibold text-cinema-muted">Email đã đăng ký *</label>
+            <input 
+              v-model="forgotEmail"
+              type="email"
+              placeholder="name@example.com"
+              required
+              class="w-full bg-cinema-card/80 border border-cinema-border focus:border-cinema-accent rounded-xl py-2.5 px-4 text-sm text-white placeholder-slate-500 focus:outline-none transition-colors"
+            />
+          </div>
+
+          <BaseButton 
+            type="submit"
+            variant="primary"
+            size="lg"
+            block
+            :loading="authStore.isLoading"
+          >
+            Gửi Mã Xác Thực OTP
+          </BaseButton>
+        </form>
+
+        <!-- Step 2: Enter OTP & New Password -->
+        <form v-else @submit.prevent="handleResetPassword" class="space-y-3.5">
+          <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-1 text-xs">
+            <div class="flex items-center gap-1.5 text-amber-300 font-bold">
+              <KeyRound class="w-4 h-4 text-amber-400" />
+              <span>Đã gửi mã OTP đến: {{ forgotEmail }}</span>
+            </div>
+            <p class="text-[11px] text-slate-300">
+              Vui lòng kiểm tra hòm thư Email (kể cả mục Spam) để lấy mã OTP 6 số.
+            </p>
+          </div>
+
+          <div class="space-y-1">
+            <label class="block text-xs font-semibold text-cinema-muted">Mã OTP (6 chữ số) *</label>
+            <input 
+              v-model="forgotOtp"
+              type="text"
+              maxlength="6"
+              placeholder="123456"
+              required
+              class="w-full bg-cinema-card/80 border border-cinema-border focus:border-cinema-accent rounded-xl py-2.5 px-4 text-center font-mono font-black text-lg tracking-[0.3em] text-white placeholder-slate-600 focus:outline-none transition-colors"
+            />
+          </div>
+
+          <div class="space-y-1">
+            <label class="block text-xs font-semibold text-cinema-muted">Mật khẩu mới (tối thiểu 6 ký tự) *</label>
+            <input 
+              v-model="forgotNewPassword"
+              type="password"
+              placeholder="••••••••"
+              required
+              minlength="6"
+              class="w-full bg-cinema-card/80 border border-cinema-border focus:border-cinema-accent rounded-xl py-2.5 px-4 text-sm text-white placeholder-slate-500 focus:outline-none transition-colors"
+            />
+          </div>
+
+          <div class="space-y-1">
+            <label class="block text-xs font-semibold text-cinema-muted">Nhập lại mật khẩu mới *</label>
+            <input 
+              v-model="forgotConfirmPassword"
+              type="password"
+              placeholder="••••••••"
+              required
+              minlength="6"
+              class="w-full bg-cinema-card/80 border border-cinema-border focus:border-cinema-accent rounded-xl py-2.5 px-4 text-sm text-white placeholder-slate-500 focus:outline-none transition-colors"
+            />
+            <p v-if="forgotPasswordMismatch" class="text-rose-400 text-[11px] font-medium pl-1">Mật khẩu không khớp.</p>
+          </div>
+
+          <div class="pt-1 flex items-center justify-between text-xs">
+            <button 
+              type="button" 
+              @click="handleSendOtp"
+              class="text-cinema-muted hover:text-amber-400 transition-colors cursor-pointer"
+            >
+              Chưa nhận được? Gửi lại OTP
+            </button>
+            <button 
+              type="button" 
+              @click="forgotStep = 1"
+              class="text-slate-400 hover:text-white transition-colors cursor-pointer"
+            >
+              Đổi email khác
+            </button>
+          </div>
+
+          <BaseButton 
+            type="submit"
+            variant="primary"
+            size="lg"
+            block
+            :loading="authStore.isLoading"
+            :disabled="forgotPasswordMismatch || !forgotOtp || !forgotNewPassword"
+          >
+            Xác Nhận & Đăng Nhập
+          </BaseButton>
+        </form>
+      </div>
+
     </div>
   </BaseModal>
 </template>
 
 <script setup lang="ts">
-import { watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useForm, useField } from 'vee-validate';
 import * as yup from 'yup';
-import { AlertCircle, CheckCircle, Gift } from 'lucide-vue-next';
+import { AlertCircle, CheckCircle, Gift, ArrowLeft, KeyRound } from 'lucide-vue-next';
 import { useAuthStore } from '../../stores/authStore';
 import BaseModal from '../base/BaseModal.vue';
 import BaseButton from '../base/BaseButton.vue';
 
 const authStore = useAuthStore();
+
+const modalTitle = computed(() => {
+  if (authStore.authTab === 'forgot') return 'Khôi Phục Mật Khẩu';
+  return authStore.authTab === 'login' ? 'Đăng Nhập CineReserve' : 'Đăng Ký Thành Viên Mới';
+});
+
+// --- Forgot Password State ---
+const forgotStep = ref<1 | 2>(1);
+const forgotEmail = ref('');
+const forgotOtp = ref('');
+const forgotNewPassword = ref('');
+const forgotConfirmPassword = ref('');
+
+const forgotPasswordMismatch = computed(() => {
+  if (!forgotNewPassword.value || !forgotConfirmPassword.value) return false;
+  return forgotNewPassword.value !== forgotConfirmPassword.value;
+});
+
+const handleSendOtp = async () => {
+  if (!forgotEmail.value) return;
+  const res = await authStore.forgotPassword(forgotEmail.value);
+  if (res?.success) {
+    forgotStep.value = 2;
+    if (res.debugOtp) {
+      forgotOtp.value = res.debugOtp;
+    }
+  }
+};
+
+const handleResetPassword = async () => {
+  if (forgotPasswordMismatch.value) return;
+  await authStore.resetPassword(
+    forgotEmail.value,
+    forgotOtp.value,
+    forgotNewPassword.value,
+    forgotConfirmPassword.value
+  );
+};
 
 // --- 1. Login Form Validation Schema with Yup ---
 const loginSchema = yup.object({
@@ -230,11 +405,15 @@ const onRegisterSubmit = handleRegisterSubmit(async (values) => {
 const resetAllForms = () => {
   resetLoginForm();
   resetRegisterForm();
+  forgotStep.value = 1;
+  forgotOtp.value = '';
+  forgotNewPassword.value = '';
+  forgotConfirmPassword.value = '';
   authStore.errorMessage = '';
   authStore.successMessage = '';
 };
 
-const switchTab = (tab: 'login' | 'register') => {
+const switchTab = (tab: 'login' | 'register' | 'forgot') => {
   authStore.authTab = tab;
   resetAllForms();
 };

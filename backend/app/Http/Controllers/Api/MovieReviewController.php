@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreReviewRequest;
 use App\Http\Resources\ReviewResource;
 use App\Services\ReviewService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class MovieReviewController extends Controller
 {
@@ -32,14 +32,9 @@ class MovieReviewController extends Controller
     /**
      * Gửi đánh giá mới cho phim
      */
-    public function store(Request $request, int $movieId): JsonResponse
+    public function store(StoreReviewRequest $request, int $movieId): JsonResponse
     {
-        $validated = $request->validate([
-            'rating' => 'required|integer|min:1|max:10',
-            'comment' => 'required|string|min:5|max:1000',
-            'user_name' => 'nullable|string|max:255',
-        ]);
-
+        $validated = $request->validated();
         $user = $request->user();
         $review = $this->reviewService->addReview($movieId, $validated, $user);
 

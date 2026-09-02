@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\CreatePaymentUrlRequest;
 use App\Models\Booking;
 use App\Services\VNPayService;
 use Illuminate\Http\JsonResponse;
@@ -20,14 +21,10 @@ class PaymentWebhookController extends Controller
     /**
      * Khởi tạo URL chuyển hướng VNPay Sandbox
      */
-    public function createVNPayUrl(Request $request): JsonResponse
+    public function createVNPayUrl(CreatePaymentUrlRequest $request): JsonResponse
     {
-        $request->validate([
-            'booking_code' => 'required|string',
-            'return_url' => 'nullable|string',
-        ]);
-
-        $booking = Booking::where('booking_code', $request->input('booking_code'))->first();
+        $validated = $request->validated();
+        $booking = Booking::where('booking_code', $validated['booking_code'])->first();
 
         if (!$booking) {
             return response()->json([
@@ -36,7 +33,7 @@ class PaymentWebhookController extends Controller
             ], 404);
         }
 
-        $returnUrl = $request->input('return_url', 'http://localhost:5173/ticket/confirmation');
+        $returnUrl = $validated['return_url'] ?? 'http://localhost:5173/ticket/confirmation';
         $paymentUrl = $this->vnPayService->createPaymentUrl($booking, $returnUrl, $request->ip() ?: '127.0.0.1');
 
         return response()->json([
@@ -62,13 +59,12 @@ class PaymentWebhookController extends Controller
     public function handleVNPayReturn(Request $request): RedirectResponse
     {
         $inputData = $request->all();
-        $bookingCode = $inputData['vnp_TxnRef'] ?? '';
-        $responseCode = $inputData['vnp_ResponseCode'] ?? '';
+        $bookingCode = (string) ($inputData['vnp_TxnRef'] ?? '');
+        $responseCode = (string) ($inputData['vnp_ResponseCode'] ?? '99');
 
-        if ($responseCode === '00') {
-            return redirect("http://localhost:5173/ticket/confirmation?code={$bookingCode}&status=success");
-        }
+        $isSuccess = ($responseCode === '00');
+        $frontendUrl = 'http://localhost:5173/ticket/confirmation?code=' . urlencode($bookingCode) . '&payment_status=' . ($isSuccess ? 'success' : 'failed');
 
-        return redirect("http://localhost:5173/checkout?code={$bookingCode}&status=failed");
+        return redirect()->away($frontendUrl);
     }
 }

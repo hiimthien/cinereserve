@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Events\SeatBookedEvent;
+use App\Events\SeatStatusUpdated;
 use App\Models\Booking;
 use App\Models\BookingSeat;
 use App\Models\Payment;
@@ -86,7 +86,11 @@ class BookingService
                 $this->seatLockingService->releaseSeat($showtimeId, $seat->id, $sessionId);
 
                 // Broadcast sự kiện ghế đã bán qua WebSocket Reverb
-                broadcast(new SeatBookedEvent($showtimeId, $seat->id, $bookingCode))->toOthers();
+                broadcast(new SeatStatusUpdated(
+                    showtime_id: $showtimeId,
+                    seat_id: $seat->id,
+                    status: 'booked'
+                ))->toOthers();
             }
 
             // 6. Tạo bản ghi giao dịch thanh toán

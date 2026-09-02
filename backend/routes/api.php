@@ -31,6 +31,9 @@ Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth');
     Route::post('/google', [AuthController::class, 'googleAuth'])->middleware('throttle:auth');
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:auth');
+    Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:auth');
+    Route::post('/change-password', [AuthController::class, 'changePassword']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
 });
@@ -41,6 +44,7 @@ Route::prefix('auth')->group(function () {
 Route::prefix('loyalty')->group(function () {
     Route::get('/rewards', [LoyaltyController::class, 'rewardsList']);
     Route::post('/redeem', [LoyaltyController::class, 'redeem']);
+    Route::get('/my-vouchers', [LoyaltyController::class, 'myVouchers']);
 });
 
 // ==========================================

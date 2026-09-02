@@ -5,26 +5,25 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Mail\LoyaltyVoucherMail;
-use App\Models\LoyaltyReward;
+use App\Http\Requests\RedeemRewardRequest;
 use App\Models\User;
-use App\Models\Voucher;
+use App\Services\LoyaltyService;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 class LoyaltyController extends Controller
 {
+    public function __construct(
+        protected LoyaltyService $loyaltyService
+    ) {}
+
     /**
      * Danh sách các phần thưởng lấy trực tiếp từ bảng Database `loyalty_rewards`
      */
     public function rewardsList(): JsonResponse
     {
-        $rewards = LoyaltyReward::where('is_active', true)
-            ->orderBy('points_required', 'asc')
-            ->get();
+        $rewards = $this->loyaltyService->getActiveRewards();
 
         return response()->json([
             'success' => true,
@@ -35,16 +34,16 @@ class LoyaltyController extends Controller
     /**
      * Đổi điểm thưởng lấy Voucher ưu đãi
      */
-    public function redeem(Request $request): JsonResponse
+    public function redeem(RedeemRewardRequest $request): JsonResponse
     {
-        $request->validate([
-            'reward_id' => 'required|string',
-            'user_id' => 'nullable|integer',
-        ]);
+        $validated = $request->validated();
 
         $user = $request->user();
+        if (!$user && isset($validated['user_id'])) {
+            $user = User::find($validated['user_id']);
+        }
         if (!$user) {
-            $user = User::find($request->user_id) ?: User::where('email', 'caoluongthienk1@gmail.com')->first();
+            $user = User::where('email', 'caoluongthienk1@gmail.com')->first();
         }
 
         if (!$user) {
@@ -54,67 +53,47 @@ class LoyaltyController extends Controller
             ], 401);
         }
 
-        // Lấy thông tin phần thưởng từ Database
-        $reward = LoyaltyReward::where('reward_key', $request->reward_id)
-            ->where('is_active', true)
-            ->first();
+        try {
+            $result = $this->loyaltyService->redeemReward($user, (string) $validated['reward_id']);
 
-        if (!$reward) {
+            return response()->json([
+                'success' => true,
+                'message' => "Đổi thưởng thành công! Đã gửi mã {$result['voucher']->code} về email {$user->email}",
+                'data' => $result,
+            ]);
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Phần thưởng không tồn tại hoặc đã tạm dừng.',
-            ], 404);
-        }
-
-        if ($user->points < $reward->points_required) {
-            return response()->json([
-                'success' => false,
-                'message' => "Bạn cần tối thiểu {$reward->points_required} điểm CinePoint (Hiện có: {$user->points} điểm).",
+                'message' => $e->getMessage(),
             ], 422);
         }
+    }
 
-        // Trừ điểm user trong Database
-        $user->points -= $reward->points_required;
-        $user->save();
-
-        // Tạo mã Voucher riêng biệt trong bảng `vouchers`
-        $voucherCode = $reward->prefix . strtoupper(substr(uniqid(), -5));
-        $voucher = Voucher::create([
-            'code' => $voucherCode,
-            'title' => $reward->title,
-            'description' => "Đổi từ {$reward->points_required} điểm CinePoint của {$user->name}",
-            'target' => $reward->target,
-            'discount_type' => 'fixed',
-            'discount_value' => $reward->discount_value,
-            'min_order_amount' => 0,
-            'usage_limit' => 1,
-            'used_count' => 0,
-            'expires_at' => now()->addMonths(3),
-            'is_active' => true,
-        ]);
-
-        // Gửi mail voucher về Gmail của user
-        try {
-            if (!empty($user->email)) {
-                Mail::to($user->email)->send(new LoyaltyVoucherMail(
-                    user: $user,
-                    voucher: $voucher,
-                    badgeText: 'Đổi Điểm Thưởng Thành Công',
-                    customMessage: "Bạn vừa đổi thành công {$reward->points_required} điểm lấy {$voucher->title}. Dưới đây là mã voucher của bạn:",
-                    subjectTitle: "🎁 [CineReserve] Đổi điểm thành công: Tặng bạn mã {$voucher->code}"
-                ));
-            }
-        } catch (Exception $e) {
-            Log::error('Lỗi gửi mail đổi điểm: ' . $e->getMessage());
+    /**
+     * Lấy danh sách voucher thuộc sở hữu của người dùng hiện tại
+     */
+    public function myVouchers(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user && $request->has('user_id')) {
+            $user = User::find($request->user_id);
         }
+        if (!$user && $request->has('email')) {
+            $user = User::where('email', $request->email)->first();
+        }
+
+        if (!$user) {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+            ]);
+        }
+
+        $vouchers = $this->loyaltyService->getUserVouchers($user);
 
         return response()->json([
             'success' => true,
-            'message' => "Đổi thưởng thành công! Đã gửi mã {$voucherCode} về email {$user->email}",
-            'data' => [
-                'voucher' => $voucher,
-                'remaining_points' => $user->points,
-            ],
+            'data' => $vouchers,
         ]);
     }
 }

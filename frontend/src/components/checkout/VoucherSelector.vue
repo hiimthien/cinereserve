@@ -64,23 +64,43 @@
         <span>{{ errorMessage }}</span>
       </p>
 
-      <!-- Suggested Hot Vouchers (1-Click Apply) -->
-      <div class="space-y-1.5 pt-1">
-        <span class="text-[10px] font-bold text-cinema-muted uppercase tracking-wider block">
-          Gợi ý mã hot:
-        </span>
+      <!-- Loyalty Points & Voucher Shortcut (Chỉ hiển thị khi đã đăng nhập) -->
+      <div v-if="authStore.isAuthenticated" class="space-y-2 pt-1 border-t border-white/5">
+        <div class="flex items-center justify-between text-[11px]">
+          <div class="flex items-center gap-1.5 text-cinema-muted">
+            <Gift class="w-3.5 h-3.5 text-amber-400" />
+            <span>Điểm: <strong class="text-white font-mono">{{ authStore.user?.points || 0 }} pts</strong></span>
+          </div>
 
-        <div class="flex flex-wrap gap-1.5">
           <button 
-            v-for="v in suggestedVouchers" 
-            :key="v.code"
-            @click="handleApply(v.code)"
-            class="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-white/5 hover:border-amber-500/40 text-[11px] transition-all cursor-pointer group"
+            @click="authStore.showRewardModal = true"
+            type="button"
+            class="text-amber-400 hover:text-amber-300 font-bold transition-colors cursor-pointer flex items-center gap-1"
           >
-            <Ticket class="w-3 h-3 text-amber-400/70 group-hover:text-amber-300" />
-            <span class="font-mono font-bold text-amber-400 group-hover:text-amber-300">{{ v.code }}</span>
-            <span class="text-slate-400 text-[10px]">({{ v.label }})</span>
+            <span>Đổi điểm lấy voucher</span>
+            <span aria-hidden="true">→</span>
           </button>
+        </div>
+
+        <!-- Fast My Vouchers Selection Chips (If user has vouchers) -->
+        <div v-if="myVouchers.length > 0" class="space-y-1 pt-1">
+          <span class="text-[10px] font-bold text-slate-400 uppercase block tracking-wider">
+            Voucher trong ví của bạn (1-click áp dụng):
+          </span>
+          <div class="flex flex-wrap gap-1.5">
+            <button 
+              v-for="v in myVouchers" 
+              :key="v.id || v.code"
+              @click="handleApply(v.code)"
+              type="button"
+              class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900/90 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/50 text-[11px] transition-all cursor-pointer group"
+              :title="v.title"
+            >
+              <Ticket class="w-3 h-3 text-emerald-400 group-hover:scale-110 transition-transform" />
+              <span class="font-mono font-bold text-white group-hover:text-emerald-300">{{ v.code }}</span>
+              <span class="text-[10px] text-amber-400 font-semibold">-{{ formatVnd(v.discount_value) }}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -89,9 +109,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { Tag, Sparkles, X, Loader2, AlertCircle, Ticket } from 'lucide-vue-next';
+import { ref, onMounted, watch } from 'vue';
+import { Tag, Sparkles, X, Loader2, AlertCircle, Gift, Ticket } from 'lucide-vue-next';
 import api from '../../services/api';
+import { useAuthStore } from '../../stores/authStore';
 import { useToast } from '../../composables/useToast';
 
 const props = defineProps<{
@@ -103,26 +124,38 @@ const emit = defineEmits<{
   (e: 'applied', voucher: { code: string; discount_amount: number; title: string } | null): void;
 }>();
 
+const authStore = useAuthStore();
 const toast = useToast();
 const voucherInput = ref('');
 const isLoading = ref(false);
 const errorMessage = ref('');
 const appliedVoucher = ref<{ code: string; discount_amount: number; title: string } | null>(null);
-
-const suggestedVouchers = [
-  { code: 'CINEMA20', label: 'Giảm 20%' },
-  { code: 'CHAOBANMOI', label: '-30K' },
-  { code: 'BAPNUOCFREE', label: '-50K Bắp' },
-  { code: 'FREEVECINE', label: 'Tặng 1 vé' },
-  { code: 'VIPCINE50', label: '-50K VIP' },
-];
+const myVouchers = ref<any[]>([]);
 
 const formatVnd = (val: number) => {
   return new Intl.NumberFormat('vi-VN').format(val) + ' đ';
 };
 
+const fetchMyVouchers = async () => {
+  if (!authStore.user) return;
+  try {
+    const res = await api.get('/loyalty/my-vouchers', {
+      params: {
+        user_id: authStore.user.id,
+        email: authStore.user.email,
+      }
+    });
+    if (res.data?.data) {
+      myVouchers.value = res.data.data;
+    }
+  } catch (err) {
+    console.warn('Could not fetch user vouchers', err);
+  }
+};
+
 const handleApply = async (code: string) => {
   if (!code) return;
+  voucherInput.value = code;
   isLoading.value = true;
   errorMessage.value = '';
 
@@ -158,4 +191,18 @@ const removeVoucher = () => {
   emit('applied', null);
   toast.info('Đã hủy áp dụng mã voucher', 'Thông báo');
 };
+
+watch(() => authStore.isAuthenticated, (isAuth) => {
+  if (isAuth) {
+    fetchMyVouchers();
+  } else {
+    myVouchers.value = [];
+  }
+});
+
+onMounted(() => {
+  if (authStore.isAuthenticated) {
+    fetchMyVouchers();
+  }
+});
 </script>

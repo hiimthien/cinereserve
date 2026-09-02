@@ -68,8 +68,8 @@
       @applied="$emit('voucher-applied', $event)"
     />
 
-    <!-- Loyalty Points Preview Box -->
-    <div class="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-center justify-between shadow-sm">
+    <!-- Loyalty Points Preview Box (Chỉ hiển thị khi đã đăng nhập) -->
+    <div v-if="authStore.isAuthenticated" class="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-center justify-between shadow-sm">
       <span class="flex items-center gap-1.5">
         <Sparkles class="w-4 h-4 text-amber-400" />
         <span>Tích lũy sau thanh toán:</span>

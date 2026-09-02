@@ -1,0 +1,25 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class AdminSeatMatrixRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'total_rows' => ['required', 'integer', 'min:4', 'max:15'],
+            'seats_per_row' => ['required', 'integer', 'min:6', 'max:20'],
+            'vip_rows' => ['nullable', 'array'],
+            'couple_rows' => ['nullable', 'array'],
+        ];
+    }
+}

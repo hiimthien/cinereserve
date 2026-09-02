@@ -27,7 +27,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   const showAuthModal = ref(false);
   const showRewardModal = ref(false);
-  const authTab = ref<'login' | 'register'>('login');
+  const showChangePasswordModal = ref(false);
+  const authTab = ref<'login' | 'register' | 'forgot'>('login');
   const isLoading = ref(false);
   const errorMessage = ref('');
   const successMessage = ref('');
@@ -114,6 +115,81 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
+  const forgotPassword = async (email: string) => {
+    isLoading.value = true;
+    errorMessage.value = '';
+    successMessage.value = '';
+    try {
+      const res = await api.post('/auth/forgot-password', { email });
+      if (res.data?.success) {
+        successMessage.value = res.data.message || 'Mã OTP đã được gửi về email của bạn.';
+        return { success: true, debugOtp: res.data?.data?.debug_otp };
+      }
+      return { success: false };
+    } catch (err: any) {
+      errorMessage.value = err.response?.data?.message || 'Không tìm thấy tài khoản với email này.';
+      return { success: false, error: errorMessage.value };
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
+  const resetPassword = async (email: string, otp: string, pass: string, passConfirm: string) => {
+    isLoading.value = true;
+    errorMessage.value = '';
+    successMessage.value = '';
+    try {
+      const res = await api.post('/auth/reset-password', {
+        email,
+        otp,
+        password: pass,
+        password_confirmation: passConfirm,
+      });
+      if (res.data?.success && res.data?.data) {
+        setAuthSession(res.data.data.token, res.data.data.user);
+        successMessage.value = 'Đặt lại mật khẩu thành công! Đã tự động đăng nhập.';
+        setTimeout(() => {
+          showAuthModal.value = false;
+        }, 800);
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      errorMessage.value = err.response?.data?.message || 'Mã OTP không hợp lệ hoặc đã hết hạn.';
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
+  const changePassword = async (currentPass: string, newPass: string, newPassConfirm: string) => {
+    isLoading.value = true;
+    errorMessage.value = '';
+    successMessage.value = '';
+    try {
+      const res = await api.post('/auth/change-password', {
+        current_password: currentPass,
+        new_password: newPass,
+        new_password_confirmation: newPassConfirm,
+        user_id: user.value?.id,
+        email: user.value?.email,
+      });
+      if (res.data?.success) {
+        successMessage.value = 'Đổi mật khẩu thành công!';
+        setTimeout(() => {
+          showChangePasswordModal.value = false;
+        }, 800);
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      errorMessage.value = err.response?.data?.message || 'Mật khẩu hiện tại không chính xác.';
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
   const googleAuth = async (email: string, name: string, avatar?: string) => {
     isLoading.value = true;
     errorMessage.value = '';
@@ -149,11 +225,17 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
-  const openAuth = (tab: 'login' | 'register' = 'login') => {
+  const openAuth = (tab: 'login' | 'register' | 'forgot' = 'login') => {
     authTab.value = tab;
     errorMessage.value = '';
     successMessage.value = '';
     showAuthModal.value = true;
+  };
+
+  const openChangePasswordModal = () => {
+    errorMessage.value = '';
+    successMessage.value = '';
+    showChangePasswordModal.value = true;
   };
 
   const fetchUser = async () => {
@@ -181,6 +263,7 @@ export const useAuthStore = defineStore('auth', () => {
     isStaff,
     showAuthModal,
     showRewardModal,
+    showChangePasswordModal,
     authTab,
     isLoading,
     errorMessage,
@@ -189,9 +272,13 @@ export const useAuthStore = defineStore('auth', () => {
     nextTierProgress,
     login,
     register,
+    forgotPassword,
+    resetPassword,
+    changePassword,
     googleAuth,
     logout,
     openAuth,
+    openChangePasswordModal,
     openRewardModal,
     fetchUser,
   };
