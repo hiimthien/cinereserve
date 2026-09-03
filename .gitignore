@@ -25,6 +25,10 @@
 .agents/
 AGENTS.md
 GEMINI.md
+CLAUDE.md
+**/AGENTS.md
+**/GEMINI.md
+**/CLAUDE.md
 
 # General OS & IDE
 .DS_Store
