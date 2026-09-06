@@ -183,7 +183,7 @@ class SeatLockingService
     /**
      * Finalize booking inside database transaction
      */
-    public function confirmBooking(int $showtimeId, array $seatIds, string $sessionId, array $bookingData): array
+    public function confirmBooking(int $showtimeId, array $seatIds, string $sessionId, array $bookingData): \App\Models\Booking
     {
         return DB::transaction(function () use ($showtimeId, $seatIds, $sessionId, $bookingData) {
             $showtime = Showtime::with(['movie', 'room'])->findOrFail($showtimeId);
