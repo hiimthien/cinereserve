@@ -39,6 +39,8 @@ Hệ thống đặt vé xem phim trực tuyến thời gian thực (Real-time Ci
    └── Sandbox Payment ──► Idempotent Webhook Verification
 ```
 
+> 📖 **Xem bộ sơ đồ thiết kế chi tiết (ERD, Sequence Diagram, Use Case):** [docs/DIAGRAMS.md](docs/DIAGRAMS.md)
+
 ---
 
 ## Tính năng chính theo vai trò
