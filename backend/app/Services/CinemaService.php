@@ -26,6 +26,53 @@ class CinemaService
         return $this->cinemaRepository->getAllCinemas(['rooms']);
     }
 
+    public function getFilteredCinemas(array $filters = []): Collection
+    {
+        return $this->cinemaRepository->getFilteredCinemas($filters, ['rooms']);
+    }
+
+    public function getCinemaShowtimes(int $cinemaId, string $date): array
+    {
+        $cacheKey = "cinemas:showtimes:cinema_{$cinemaId}:date_{$date}";
+
+        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 60, function () use ($cinemaId, $date) {
+            $cinema = $this->cinemaRepository->findById($cinemaId, ['rooms']);
+
+            if (! $cinema) {
+                abort(404, 'Không tìm thấy rạp chiếu.');
+            }
+
+            $showtimes = \App\Models\Showtime::with(['movie', 'room'])
+                ->where('cinema_id', $cinemaId)
+                ->where('show_date', $date)
+                ->orderBy('start_time')
+                ->get();
+
+            $movieGroups = [];
+            foreach ($showtimes as $st) {
+                if (! $st->movie) {
+                    continue;
+                }
+
+                $movieId = $st->movie->id;
+                if (! isset($movieGroups[$movieId])) {
+                    $movieGroups[$movieId] = [
+                        'movie' => new \App\Http\Resources\MovieResource($st->movie),
+                        'showtimes' => [],
+                    ];
+                }
+
+                $movieGroups[$movieId]['showtimes'][] = new \App\Http\Resources\ShowtimeResource($st);
+            }
+
+            return [
+                'cinema' => new \App\Http\Resources\CinemaResource($cinema),
+                'date' => $date,
+                'movies' => array_values($movieGroups),
+            ];
+        });
+    }
+
     public function findCinema(int $id): ?Cinema
     {
         return $this->cinemaRepository->findById($id, ['rooms']);

@@ -93,9 +93,6 @@ const { validateOrphanSeats } = useSeatValidation();
 const showtimeId = Number(route.params.showtimeId);
 const movieSlug = String(route.params.slug);
 
-// Polling interval reference for real-time fallback sync
-let pollingTimer: any = null;
-
 const formattedDate = computed(() => {
   const raw = store.selectedDate || '01/09/2026';
   const clean = raw.split('T')[0].split(' ')[0];
@@ -109,18 +106,12 @@ const formattedDate = computed(() => {
 onMounted(async () => {
   if (showtimeId) {
     await store.loadShowtimeById(showtimeId);
-    
-    // Fallback polling every 4s for real-time consistency
-    pollingTimer = setInterval(() => {
-      store.fetchSeats(showtimeId);
-    }, 4000);
   }
 });
 
 onUnmounted(() => {
-  if (pollingTimer) {
-    clearInterval(pollingTimer);
-    pollingTimer = null;
+  if (showtimeId) {
+    store.unsubscribeFromSeatUpdates(showtimeId);
   }
 });
 

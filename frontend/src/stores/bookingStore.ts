@@ -237,10 +237,17 @@ export const useBookingStore = defineStore('booking', () => {
     selectedSeats.value = [];
   };
 
+  let currentSubscribedShowtimeId: number | null = null;
+
   const subscribeToSeatUpdates = (showtimeId: number) => {
     try {
       const echo = getEcho();
+      if (currentSubscribedShowtimeId && currentSubscribedShowtimeId !== showtimeId) {
+        echo.leaveChannel(`showtime.${currentSubscribedShowtimeId}`);
+      }
+      currentSubscribedShowtimeId = showtimeId;
       echo.channel(`showtime.${showtimeId}`)
+        .stopListening('.SeatStatusUpdated')
         .listen('.SeatStatusUpdated', (event: any) => {
           const seatToUpdate = seats.value.find(s => s.id === event.seat_id);
           if (seatToUpdate) {
@@ -254,6 +261,21 @@ export const useBookingStore = defineStore('booking', () => {
         });
     } catch (e) {
       console.warn('Echo listener skipped:', e);
+    }
+  };
+
+  const unsubscribeFromSeatUpdates = (showtimeId?: number) => {
+    try {
+      const id = showtimeId || currentSubscribedShowtimeId;
+      if (id) {
+        const echo = getEcho();
+        echo.leaveChannel(`showtime.${id}`);
+        if (currentSubscribedShowtimeId === id) {
+          currentSubscribedShowtimeId = null;
+        }
+      }
+    } catch (e) {
+      console.warn('Echo leave error:', e);
     }
   };
 
@@ -477,6 +499,8 @@ export const useBookingStore = defineStore('booking', () => {
     toggleSeat,
     startCountdown,
     stopCountdown,
+    subscribeToSeatUpdates,
+    unsubscribeFromSeatUpdates,
     processCheckout
   };
 

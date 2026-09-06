@@ -21,6 +21,11 @@ interface CinemaRepositoryInterface
     public function getAllCinemas(array $relations = ['rooms']): Collection;
 
     /**
+     * Lấy danh sách rạp theo bộ lọc (city, chain, search)
+     */
+    public function getFilteredCinemas(array $filters = [], array $relations = ['rooms']): Collection;
+
+    /**
      * Tìm rạp theo ID
      */
     public function findById(int $id, array $relations = ['rooms']): ?Cinema;

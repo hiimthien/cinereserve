@@ -6,39 +6,22 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CinemaResource;
-use App\Http\Resources\MovieResource;
-use App\Http\Resources\ShowtimeResource;
-use App\Models\Cinema;
-use App\Models\Showtime;
+use App\Services\CinemaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class CinemaController extends Controller
 {
+    public function __construct(
+        protected CinemaService $cinemaService
+    ) {}
+
     /**
-     * Lấy danh sách rạp theo thành phố / chuỗi rạp
+     * Lấy danh sách rạp theo thành phố / chuỗi rạp (Thin Controller)
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Cinema::with('rooms');
-
-        if ($request->filled('city') && $request->query('city') !== 'Tất cả') {
-            $query->where('city', 'like', "%{$request->query('city')}%");
-        }
-
-        if ($request->filled('chain') && $request->query('chain') !== 'Tất cả') {
-            $query->where('name', 'like', "%{$request->query('chain')}%");
-        }
-
-        if ($request->filled('search')) {
-            $search = (string) $request->query('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('address', 'like', "%{$search}%");
-            });
-        }
-
-        $cinemas = $query->get();
+        $cinemas = $this->cinemaService->getFilteredCinemas($request->all());
 
         return response()->json([
             'success' => true,
@@ -47,44 +30,13 @@ class CinemaController extends Controller
     }
 
     /**
-     * Lấy lịch chiếu của 1 Rạp gom nhóm theo từng Phim đang chiếu tại rạp đó
+     * Lấy lịch chiếu của 1 Rạp gom nhóm theo từng Phim đang chiếu tại rạp đó (Thin Controller)
      */
     public function showtimes(int $id, Request $request): JsonResponse
     {
-        $cinema = Cinema::with('rooms')->findOrFail($id);
+        $date = (string) $request->query('date', date('Y-m-d'));
+        $data = $this->cinemaService->getCinemaShowtimes($id, $date);
 
-        $date = $request->query('date', date('Y-m-d'));
-
-        // Lấy tất cả suất chiếu của rạp trong ngày đó
-        $showtimes = Showtime::with(['movie', 'room'])
-            ->where('cinema_id', $id)
-            ->where('show_date', $date)
-            ->orderBy('start_time')
-            ->get();
-
-        // Gom nhóm theo từng bộ phim
-        $movieGroups = [];
-        foreach ($showtimes as $st) {
-            if (! $st->movie) {
-                continue;
-            }
-
-            $movieId = $st->movie->id;
-            if (! isset($movieGroups[$movieId])) {
-                $movieGroups[$movieId] = [
-                    'movie' => new MovieResource($st->movie),
-                    'showtimes' => [],
-                ];
-            }
-
-            $movieGroups[$movieId]['showtimes'][] = new ShowtimeResource($st);
-        }
-
-        return response()->json([
-            'success' => true,
-            'cinema' => new CinemaResource($cinema),
-            'date' => $date,
-            'movies' => array_values($movieGroups),
-        ]);
+        return response()->json(array_merge(['success' => true], $data));
     }
 }

@@ -36,6 +36,29 @@ class CinemaRepository implements CinemaRepositoryInterface
         return Cinema::with($relations)->orderBy('name', 'asc')->get();
     }
 
+    public function getFilteredCinemas(array $filters = [], array $relations = ['rooms']): Collection
+    {
+        $query = Cinema::with($relations);
+
+        if (! empty($filters['city']) && $filters['city'] !== 'all' && $filters['city'] !== 'Tất cả') {
+            $query->where('city', 'like', "%{$filters['city']}%");
+        }
+
+        if (! empty($filters['chain']) && $filters['chain'] !== 'all' && $filters['chain'] !== 'Tất cả') {
+            $query->where('name', 'like', "%{$filters['chain']}%");
+        }
+
+        if (! empty($filters['search'])) {
+            $search = (string) $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('address', 'like', "%{$search}%");
+            });
+        }
+
+        return $query->orderBy('name', 'asc')->get();
+    }
+
     public function findById(int $id, array $relations = ['rooms']): ?Cinema
     {
         return Cinema::with($relations)->findOrFail($id);

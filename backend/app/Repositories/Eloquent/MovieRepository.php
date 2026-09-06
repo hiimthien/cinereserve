@@ -21,8 +21,7 @@ class MovieRepository implements MovieRepositoryInterface
 
     public function getFilteredMovies(array $filters = []): Collection
     {
-        return Movie::with(['showtimes.cinema', 'showtimes.room'])
-            ->filter($filters)
+        return Movie::filter($filters)
             ->orderByDesc('rating')
             ->orderByDesc('release_date')
             ->get();

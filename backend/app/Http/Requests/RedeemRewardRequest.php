@@ -16,7 +16,7 @@ class RedeemRewardRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'reward_id' => ['required', 'string'],
+            'reward_id' => ['required'],
             'user_id' => ['nullable', 'integer'],
         ];
     }

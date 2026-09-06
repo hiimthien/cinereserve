@@ -60,6 +60,16 @@ class SeatLockingService
                 ->where('status', 'confirmed');
         })->pluck('seat_id')->flip()->toArray();
 
+        // 2. Batch fetch all Redis locks for seats in a single MGET query (Eliminate N+1 Redis queries)
+        $lockKeyMap = [];
+        $keysToFetch = [];
+        foreach ($seats as $seat) {
+            $key = $this->getSeatLockKey($showtimeId, $seat->id);
+            $lockKeyMap[$seat->id] = $key;
+            $keysToFetch[] = $key;
+        }
+        $cachedHolds = !empty($keysToFetch) ? Cache::many($keysToFetch) : [];
+
         $result = [];
 
         foreach ($seats as $seat) {
@@ -70,9 +80,8 @@ class SeatLockingService
             if (isset($bookedSeatIds[$seat->id])) {
                 $status = 'booked';
             } else {
-                // Check in Redis cache
-                $lockKey = $this->getSeatLockKey($showtimeId, $seat->id);
-                $holdData = Cache::get($lockKey);
+                $key = $lockKeyMap[$seat->id] ?? '';
+                $holdData = $cachedHolds[$key] ?? null;
 
                 if ($holdData) {
                     $status = 'holding';

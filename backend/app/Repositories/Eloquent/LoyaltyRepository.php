@@ -22,7 +22,10 @@ class LoyaltyRepository implements LoyaltyRepositoryInterface
 
     public function findRewardByKey(string $key): ?LoyaltyReward
     {
-        return LoyaltyReward::where('reward_key', $key)
+        return LoyaltyReward::where(function ($query) use ($key) {
+            $query->where('reward_key', $key)
+                ->orWhere('id', $key);
+        })
             ->where('is_active', true)
             ->first();
     }

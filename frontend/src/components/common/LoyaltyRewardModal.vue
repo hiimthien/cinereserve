@@ -272,7 +272,7 @@ const handleRedeem = async (reward: any) => {
 
   try {
     const res = await api.post('/loyalty/redeem', {
-      reward_id: reward.id,
+      reward_id: reward.reward_key || reward.id,
       user_id: authStore.user.id,
     });
 
@@ -300,8 +300,9 @@ const handleRedeem = async (reward: any) => {
   }
 };
 
-watch(() => authStore.showRewardModal, (isOpen) => {
+watch(() => authStore.showRewardModal, async (isOpen) => {
   if (isOpen && authStore.isAuthenticated) {
+    await authStore.fetchUser();
     fetchMyVouchers();
   }
 });
@@ -315,6 +316,7 @@ onMounted(async () => {
   } catch (e) {}
 
   if (authStore.isAuthenticated) {
+    await authStore.fetchUser();
     fetchMyVouchers();
   }
 });

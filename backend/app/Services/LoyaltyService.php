@@ -46,10 +46,6 @@ class LoyaltyService
             throw new Exception("Bạn không đủ điểm để đổi phần thưởng này (Hiện có: {$user->points} pts, Yêu cầu: {$reward->points_required} pts).");
         }
 
-        // Trừ điểm thưởng của người dùng
-        $user->points -= $reward->points_required;
-        $user->save();
-
         // Sinh mã voucher duy nhất
         $prefix = match ($reward->target) {
             'ticket' => 'FREETICKET',
@@ -58,32 +54,40 @@ class LoyaltyService
         };
         $voucherCode = strtoupper($prefix.'-'.substr(md5(uniqid((string) mt_rand(), true)), 0, 6));
 
-        $voucherData = [
-            'code' => $voucherCode,
-            'title' => $reward->title,
-            'description' => "Đổi từ {$reward->points_required} điểm CinePoint của {$user->name}",
-            'target' => $reward->target,
-            'discount_type' => $reward->discount_type,
-            'discount_value' => $reward->discount_value,
-            'min_order_amount' => $reward->min_order_amount ?? 0,
-            'usage_limit' => 1,
-            'used_count' => 0,
-            'expires_at' => Carbon::now()->addMonths(3),
-            'is_active' => true,
-        ];
+        // Thực hiện trừ điểm và tạo Voucher trong Atomic Transaction
+        $result = \Illuminate\Support\Facades\DB::transaction(function () use ($user, $reward, $voucherCode) {
+            $user->points -= $reward->points_required;
+            $user->save();
 
-        if (Schema::hasColumn('vouchers', 'user_id')) {
-            $voucherData['user_id'] = $user->id;
-        }
+            $voucherData = [
+                'user_id' => $user->id,
+                'code' => $voucherCode,
+                'title' => $reward->title,
+                'description' => "Đổi từ {$reward->points_required} điểm CinePoint của {$user->name}",
+                'target' => $reward->target,
+                'discount_type' => $reward->discount_type ?? 'fixed',
+                'discount_value' => $reward->discount_value,
+                'min_order_amount' => $reward->min_order_amount ?? 0,
+                'usage_limit' => 1,
+                'used_count' => 0,
+                'expires_at' => Carbon::now()->addMonths(3),
+                'is_active' => true,
+            ];
 
-        $voucher = Voucher::create($voucherData);
+            $voucher = Voucher::create($voucherData);
 
-        // Gửi email xác nhận qua Queue Job
+            return [
+                'voucher' => $voucher,
+                'remaining_points' => $user->points,
+            ];
+        });
+
+        // Gửi email xác nhận qua Queue Job (nếu có email)
         try {
             if (! empty($user->email)) {
                 SendWelcomeVoucherEmailJob::dispatch(
                     user: $user,
-                    voucher: $voucher,
+                    voucher: $result['voucher'],
                     badgeText: 'Đổi Thưởng CinePoints',
                     customMessage: "Bạn đã đổi thành công phần thưởng [{$reward->title}] bằng {$reward->points_required} điểm CinePoints:",
                     subjectTitle: "🎁 [CineReserve] Quà tặng đổi thưởng: Mã {$voucherCode} dành cho bạn"
@@ -93,9 +97,6 @@ class LoyaltyService
             Log::error('Lỗi dispatch Queue Job đổi thưởng: '.$e->getMessage());
         }
 
-        return [
-            'voucher' => $voucher,
-            'remaining_points' => $user->points,
-        ];
+        return $result;
     }
 }
