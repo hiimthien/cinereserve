@@ -27,6 +27,7 @@ class LoyaltyVoucherMail extends Mailable
     public function envelope(): Envelope
     {
         $subject = $this->subjectTitle ?: "🎁 [CineReserve] Quà tặng Voucher {$this->voucher->code} dành riêng cho bạn!";
+
         return new Envelope(
             subject: $subject,
         );

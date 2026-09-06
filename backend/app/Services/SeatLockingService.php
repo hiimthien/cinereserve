@@ -3,12 +3,20 @@
 namespace App\Services;
 
 use App\Events\SeatStatusUpdated;
+use App\Jobs\SendTicketEmailJob;
+use App\Mail\LoyaltyVoucherMail;
+use App\Models\Booking;
 use App\Models\BookingSeat;
+use App\Models\Payment;
 use App\Models\Seat;
 use App\Models\Showtime;
+use App\Models\User;
+use App\Models\Voucher;
+use Exception;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Exception;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class SeatLockingService
 {
@@ -49,7 +57,7 @@ class SeatLockingService
         // 1. Get confirmed booked seats from DB
         $bookedSeatIds = BookingSeat::whereHas('booking', function ($q) use ($showtimeId) {
             $q->where('showtime_id', $showtimeId)
-              ->where('status', 'confirmed');
+                ->where('status', 'confirmed');
         })->pluck('seat_id')->flip()->toArray();
 
         $result = [];
@@ -76,16 +84,14 @@ class SeatLockingService
             // Calculate price based on seat type (VND)
             $price = (float) ($showtime->base_price ?: 95000);
             if ($seat->type === 'vip') {
-                $price = isset($showtime->price_vip) && (float)$showtime->price_vip > 0 
-                    ? (float) $showtime->price_vip 
+                $price = isset($showtime->price_vip) && (float) $showtime->price_vip > 0
+                    ? (float) $showtime->price_vip
                     : ($price + 15000);
             } elseif ($seat->type === 'couple') {
-                $price = isset($showtime->price_couple) && (float)$showtime->price_couple > 0 
-                    ? (float) $showtime->price_couple 
+                $price = isset($showtime->price_couple) && (float) $showtime->price_couple > 0
+                    ? (float) $showtime->price_couple
                     : ($price * 2);
             }
-
-
 
             $result[] = [
                 'id' => $seat->id,
@@ -111,11 +117,11 @@ class SeatLockingService
         // 1. Check if already booked in DB
         $isBooked = BookingSeat::whereHas('booking', function ($q) use ($showtimeId) {
             $q->where('showtime_id', $showtimeId)
-              ->where('status', 'confirmed');
+                ->where('status', 'confirmed');
         })->where('seat_id', $seatId)->exists();
 
         if ($isBooked) {
-            throw new Exception("Ghế này đã được bán thành công.");
+            throw new Exception('Ghế này đã được bán thành công.');
         }
 
         $lockKey = $this->getSeatLockKey($showtimeId, $seatId);
@@ -131,14 +137,14 @@ class SeatLockingService
 
         $acquired = Cache::add($lockKey, $payload, self::HOLD_DURATION_SECONDS);
 
-        if (!$acquired) {
+        if (! $acquired) {
             $currentHold = Cache::get($lockKey);
             if ($currentHold && ($currentHold['session_id'] ?? '') === $sessionId) {
                 // Refresh TTL if owned by same user
                 Cache::put($lockKey, $payload, self::HOLD_DURATION_SECONDS);
                 $acquired = true;
             } else {
-                throw new Exception("Ghế đang được giữ bởi người dùng khác.");
+                throw new Exception('Ghế đang được giữ bởi người dùng khác.');
             }
         }
 
@@ -183,7 +189,7 @@ class SeatLockingService
     /**
      * Finalize booking inside database transaction
      */
-    public function confirmBooking(int $showtimeId, array $seatIds, string $sessionId, array $bookingData): \App\Models\Booking
+    public function confirmBooking(int $showtimeId, array $seatIds, string $sessionId, array $bookingData): Booking
     {
         return DB::transaction(function () use ($showtimeId, $seatIds, $sessionId, $bookingData) {
             $showtime = Showtime::with(['movie', 'room'])->findOrFail($showtimeId);
@@ -194,9 +200,9 @@ class SeatLockingService
                 $hold = Cache::get($lockKey);
 
                 // If in testing or hold valid
-                if (!$hold || ($hold['session_id'] ?? '') !== $sessionId) {
+                if (! $hold || ($hold['session_id'] ?? '') !== $sessionId) {
                     // Check if already booked
-                    $isBooked = BookingSeat::whereHas('booking', fn($q) => $q->where('showtime_id', $showtimeId)->where('status', 'confirmed'))
+                    $isBooked = BookingSeat::whereHas('booking', fn ($q) => $q->where('showtime_id', $showtimeId)->where('status', 'confirmed'))
                         ->where('seat_id', $seatId)->exists();
                     if ($isBooked) {
                         throw new Exception("Ghế #{$seatId} đã được đặt trước.");
@@ -213,9 +219,8 @@ class SeatLockingService
                 $seatsTotal += $p;
             }
 
-
             $combosTotal = 0;
-            if (!empty($bookingData['combos'])) {
+            if (! empty($bookingData['combos'])) {
                 foreach ($bookingData['combos'] as $cb) {
                     $combosTotal += (float) ($cb['price'] ?? 0) * (int) ($cb['quantity'] ?? 1);
                 }
@@ -224,13 +229,13 @@ class SeatLockingService
             $discountAmount = (float) ($bookingData['discount_amount'] ?? 0);
             $calculatedTotal = max(0, $seatsTotal + $combosTotal - $discountAmount);
 
-            $finalTotal = isset($bookingData['total_amount']) && (float)$bookingData['total_amount'] > 0
+            $finalTotal = isset($bookingData['total_amount']) && (float) $bookingData['total_amount'] > 0
                 ? (float) $bookingData['total_amount']
                 : $calculatedTotal;
 
             // Create Booking with Combos, Voucher and Customer details
-            $bookingCode = 'CR-' . strtoupper(substr(uniqid(), -6));
-            $booking = \App\Models\Booking::create([
+            $bookingCode = 'CR-'.strtoupper(substr(uniqid(), -6));
+            $booking = Booking::create([
                 'booking_code' => $bookingCode,
                 'showtime_id' => $showtimeId,
                 'user_name' => $bookingData['user_name'] ?? ($bookingData['card_holder'] ?? 'Cao Lương Thiện'),
@@ -246,13 +251,12 @@ class SeatLockingService
             ]);
 
             // Increment voucher usage if applied
-            if (!empty($bookingData['voucher_code'])) {
-                \App\Models\Voucher::where('code', $bookingData['voucher_code'])->increment('used_count');
+            if (! empty($bookingData['voucher_code'])) {
+                Voucher::where('code', $bookingData['voucher_code'])->increment('used_count');
             }
 
-
             // Award Loyalty points and update Membership tier
-            $user = \App\Models\User::where('email', $booking->user_email)->first();
+            $user = User::where('email', $booking->user_email)->first();
             if ($user) {
                 $loyaltyResult = $user->processBookingLoyalty((float) $booking->total_amount, count($seatIds));
 
@@ -260,31 +264,33 @@ class SeatLockingService
                 if ($loyaltyResult['upgraded']) {
                     try {
                         $upgradeVoucherCode = $user->membership_tier === 'diamond' ? 'FREEVECINE' : 'VIPCINE50';
-                        $upgradeVoucher = \App\Models\Voucher::where('code', $upgradeVoucherCode)->first();
+                        $upgradeVoucher = Voucher::where('code', $upgradeVoucherCode)->first();
                         if ($upgradeVoucher) {
-                            \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\LoyaltyVoucherMail(
+                            Mail::to($user->email)->send(new LoyaltyVoucherMail(
                                 user: $user,
                                 voucher: $upgradeVoucher,
-                                badgeText: "CHÚC MỪNG THĂNG HẠNG " . strtoupper($user->membership_tier),
+                                badgeText: 'CHÚC MỪNG THĂNG HẠNG '.strtoupper($user->membership_tier),
                                 customMessage: "Xin chúc mừng bạn đã xuất sắc thăng hạng lên {$user->getTierName()}! Để vinh danh cột mốc này, CineReserve gửi tặng bạn đặc quyền Voucher sau:",
                                 subjectTitle: "👑 [CineReserve] Vinh danh thăng hạng {$user->getTierName()}! Tặng bạn Voucher độc quyền"
                             ));
                         }
-                    } catch (\Exception $e) {
-                        \Illuminate\Support\Facades\Log::error('Lỗi gửi mail thăng hạng: ' . $e->getMessage());
+                    } catch (Exception $e) {
+                        Log::error('Lỗi gửi mail thăng hạng: '.$e->getMessage());
                     }
                 }
             }
-
-
 
             // Save booking seats & release Redis locks
             $seatsInfo = [];
             foreach ($seatIds as $seatId) {
                 $seat = Seat::find($seatId);
                 $seatPrice = $showtime->base_price ?: 95000;
-                if ($seat && $seat->type === 'vip') $seatPrice += 20000;
-                if ($seat && $seat->type === 'couple') $seatPrice = ($seatPrice * 2) + 30000;
+                if ($seat && $seat->type === 'vip') {
+                    $seatPrice += 20000;
+                }
+                if ($seat && $seat->type === 'couple') {
+                    $seatPrice = ($seatPrice * 2) + 30000;
+                }
 
                 BookingSeat::create([
                     'booking_id' => $booking->id,
@@ -295,7 +301,6 @@ class SeatLockingService
                 // Forget redis lock
                 Cache::forget($this->getSeatLockKey($showtimeId, $seatId));
 
-
                 // Broadcast booked state
                 event(new SeatStatusUpdated(
                     showtime_id: $showtimeId,
@@ -303,16 +308,15 @@ class SeatLockingService
                     status: 'booked'
                 ));
 
-
                 if ($seat) {
                     $seatsInfo[] = $seat;
                 }
             }
 
             // Record Payment
-            \App\Models\Payment::create([
+            Payment::create([
                 'booking_id' => $booking->id,
-                'transaction_id' => 'TXN-' . strtoupper(uniqid()),
+                'transaction_id' => 'TXN-'.strtoupper(uniqid()),
                 'provider' => $bookingData['payment_method'] ?? 'card',
                 'amount' => $booking->total_amount,
                 'status' => 'success',
@@ -324,13 +328,12 @@ class SeatLockingService
 
             // Gửi email vé điện tử qua Queue Job (Background Worker)
             try {
-                if (!empty($booking->user_email)) {
-                    \App\Jobs\SendTicketEmailJob::dispatch($booking);
+                if (! empty($booking->user_email)) {
+                    SendTicketEmailJob::dispatch($booking);
                 }
-            } catch (\Exception $mailEx) {
-                \Illuminate\Support\Facades\Log::error('Lỗi dispatch Queue Job gửi vé: ' . $mailEx->getMessage());
+            } catch (Exception $mailEx) {
+                Log::error('Lỗi dispatch Queue Job gửi vé: '.$mailEx->getMessage());
             }
-
 
             return $booking;
         });
@@ -341,10 +344,14 @@ class SeatLockingService
      */
     public function validateAntiOrphanRule(int $showtimeId, array $selectedSeatIds): bool
     {
-        if (empty($selectedSeatIds)) return true;
+        if (empty($selectedSeatIds)) {
+            return true;
+        }
 
         $showtime = Showtime::find($showtimeId);
-        if (!$showtime) return true;
+        if (! $showtime) {
+            return true;
+        }
 
         $allSeats = Seat::where('room_id', $showtime->room_id)->get()->groupBy('row');
         $selectedSet = array_flip($selectedSeatIds);
@@ -352,7 +359,9 @@ class SeatLockingService
         foreach ($allSeats as $row => $seatsInRow) {
             $sorted = $seatsInRow->sortBy('number')->values();
             $total = $sorted->count();
-            if ($total < 3) continue;
+            if ($total < 3) {
+                continue;
+            }
 
             $hasUserSeatInRow = false;
             foreach ($sorted as $s) {
@@ -361,20 +370,29 @@ class SeatLockingService
                     break;
                 }
             }
-            if (!$hasUserSeatInRow) continue;
+            if (! $hasUserSeatInRow) {
+                continue;
+            }
 
             $isTaken = function (int $idx) use ($sorted, $total, $selectedSet, $showtimeId): bool {
-                if ($idx < 0 || $idx >= $total) return true; // Mép ngoài tường coi như đã chặn
+                if ($idx < 0 || $idx >= $total) {
+                    return true;
+                } // Mép ngoài tường coi như đã chặn
                 $s = $sorted[$idx];
-                if (isset($selectedSet[$s->id])) return true;
-                if ($s->type === 'couple') return false;
+                if (isset($selectedSet[$s->id])) {
+                    return true;
+                }
+                if ($s->type === 'couple') {
+                    return false;
+                }
 
                 $lockKey = $this->getSeatLockKey($showtimeId, $s->id);
+
                 return Cache::has($lockKey);
             };
 
             for ($i = 0; $i < $total; $i++) {
-                if (!$isTaken($i)) {
+                if (! $isTaken($i)) {
                     if ($isTaken($i - 1) && $isTaken($i + 1)) {
                         return false; // Phát hiện tạo ra ghế trống đơn lẻ
                     }

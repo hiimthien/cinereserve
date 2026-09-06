@@ -40,7 +40,7 @@ class CinemaService
         ]);
 
         // Auto-create default rooms if specified or create 2 standard rooms by default
-        $roomsCount = isset($data['default_rooms_count']) ? (int)$data['default_rooms_count'] : 2;
+        $roomsCount = isset($data['default_rooms_count']) ? (int) $data['default_rooms_count'] : 2;
         for ($i = 1; $i <= $roomsCount; $i++) {
             Room::create([
                 'cinema_id' => $cinema->id,

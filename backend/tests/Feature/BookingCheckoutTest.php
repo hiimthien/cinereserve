@@ -21,8 +21,11 @@ class BookingCheckoutTest extends TestCase
     use RefreshDatabase;
 
     protected Showtime $showtime;
+
     protected Seat $seat1;
+
     protected Seat $seat2;
+
     protected SeatLockingService $seatLockingService;
 
     protected function setUp(): void
@@ -106,7 +109,7 @@ class BookingCheckoutTest extends TestCase
                     'name' => 'Combo Bắp Nước Sweet',
                     'price' => 75000,
                     'quantity' => 1,
-                ]
+                ],
             ],
         ]);
 

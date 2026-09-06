@@ -92,7 +92,9 @@ class User extends Authenticatable
     public function processBookingLoyalty(float $amount, int $ticketsCount): array
     {
         $earnedPoints = (int) round(($amount / 1000) * $this->getPointMultiplier());
-        if ($earnedPoints < 1) $earnedPoints = 1;
+        if ($earnedPoints < 1) {
+            $earnedPoints = 1;
+        }
 
         $this->points += $earnedPoints;
         $this->total_spent += $amount;

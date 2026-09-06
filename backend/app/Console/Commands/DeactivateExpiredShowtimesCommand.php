@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Models\Booking;
 use App\Models\Showtime;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -42,7 +43,7 @@ class DeactivateExpiredShowtimesCommand extends Command
             ->where('show_date', '<', $currentDate)
             ->orWhere(function ($q) use ($currentDate, $currentTime) {
                 $q->where('show_date', '=', $currentDate)
-                  ->where('start_time', '<=', $currentTime);
+                    ->where('start_time', '<=', $currentTime);
             })
             ->get();
 
@@ -50,6 +51,7 @@ class DeactivateExpiredShowtimesCommand extends Command
 
         if ($count === 0) {
             $this->info('Không có suất chiếu nào quá hạn cần xử lý.');
+
             return Command::SUCCESS;
         }
 
@@ -57,8 +59,8 @@ class DeactivateExpiredShowtimesCommand extends Command
 
         // 2. Dọn dẹp Redis locks & đánh dấu vé quá hạn chưa check-in
         $expiredShowtimeIds = $expiredShowtimes->pluck('id')->toArray();
-        
-        $expiredBookingsCount = \App\Models\Booking::query()
+
+        $expiredBookingsCount = Booking::query()
             ->whereIn('showtime_id', $expiredShowtimeIds)
             ->where('check_in_status', 'pending')
             ->where('status', 'confirmed')

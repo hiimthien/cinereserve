@@ -26,7 +26,7 @@ class PaymentWebhookController extends Controller
         $validated = $request->validated();
         $booking = Booking::where('booking_code', $validated['booking_code'])->first();
 
-        if (!$booking) {
+        if (! $booking) {
             return response()->json([
                 'success' => false,
                 'message' => 'Không tìm thấy đơn hàng.',
@@ -63,7 +63,7 @@ class PaymentWebhookController extends Controller
         $responseCode = (string) ($inputData['vnp_ResponseCode'] ?? '99');
 
         $isSuccess = ($responseCode === '00');
-        $frontendUrl = 'http://localhost:5173/ticket/confirmation?code=' . urlencode($bookingCode) . '&payment_status=' . ($isSuccess ? 'success' : 'failed');
+        $frontendUrl = 'http://localhost:5173/ticket/confirmation?code='.urlencode($bookingCode).'&payment_status='.($isSuccess ? 'success' : 'failed');
 
         return redirect()->away($frontendUrl);
     }

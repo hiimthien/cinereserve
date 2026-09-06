@@ -14,20 +14,20 @@ class UserRepository implements UserRepositoryInterface
     {
         $query = User::withCount('bookings');
 
-        if (!empty($filters['role']) && $filters['role'] !== 'all') {
+        if (! empty($filters['role']) && $filters['role'] !== 'all') {
             $query->where('role', $filters['role']);
         }
 
-        if (!empty($filters['membership_tier']) && $filters['membership_tier'] !== 'all') {
+        if (! empty($filters['membership_tier']) && $filters['membership_tier'] !== 'all') {
             $query->where('membership_tier', $filters['membership_tier']);
         }
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%");
             });
         }
 
@@ -48,12 +48,14 @@ class UserRepository implements UserRepositoryInterface
     {
         $user = User::findOrFail($id);
         $user->update($attributes);
+
         return $user->fresh();
     }
 
     public function delete(int $id): bool
     {
         $user = User::findOrFail($id);
+
         return (bool) $user->delete();
     }
 
@@ -61,6 +63,7 @@ class UserRepository implements UserRepositoryInterface
     {
         $user = User::findOrFail($id);
         $user->update(['role' => $role]);
+
         return $user->fresh();
     }
 
@@ -69,6 +72,7 @@ class UserRepository implements UserRepositoryInterface
         $user = User::findOrFail($id);
         $user->points = max(0, $user->points + $pointsDelta);
         $user->save();
+
         return $user->fresh();
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -18,11 +19,11 @@ class CheckAdminRole
         $user = $request->user();
 
         // Allow demo fallback in local development if not strictly authenticated
-        if (!$user) {
-            $user = \App\Models\User::where('email', 'caoluongthienk1@gmail.com')->first();
+        if (! $user) {
+            $user = User::where('email', 'caoluongthienk1@gmail.com')->first();
         }
 
-        if (!$user || $user->role !== 'admin') {
+        if (! $user || $user->role !== 'admin') {
             return response()->json([
                 'success' => false,
                 'message' => 'Bạn không có quyền truy cập khu vực Quản trị viên (Admin Required).',

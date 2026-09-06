@@ -19,8 +19,8 @@ class AnalyticsService
     public function calculateDashboardOverview(array $filterParams): array
     {
         $period = $filterParams['period'] ?? '7days';
-        $cinemaId = !empty($filterParams['cinema_id']) && $filterParams['cinema_id'] !== 'all' ? (int)$filterParams['cinema_id'] : null;
-        $movieId = !empty($filterParams['movie_id']) && $filterParams['movie_id'] !== 'all' ? (int)$filterParams['movie_id'] : null;
+        $cinemaId = ! empty($filterParams['cinema_id']) && $filterParams['cinema_id'] !== 'all' ? (int) $filterParams['cinema_id'] : null;
+        $movieId = ! empty($filterParams['movie_id']) && $filterParams['movie_id'] !== 'all' ? (int) $filterParams['movie_id'] : null;
 
         $now = Carbon::now();
         switch ($period) {
@@ -41,8 +41,8 @@ class AnalyticsService
                 $daysCount = 12;
                 break;
             case 'custom':
-                $startDate = !empty($filterParams['start_date']) ? Carbon::parse($filterParams['start_date'])->startOfDay() : $now->copy()->subDays(6)->startOfDay();
-                $endDate = !empty($filterParams['end_date']) ? Carbon::parse($filterParams['end_date'])->endOfDay() : $now->copy()->endOfDay();
+                $startDate = ! empty($filterParams['start_date']) ? Carbon::parse($filterParams['start_date'])->startOfDay() : $now->copy()->subDays(6)->startOfDay();
+                $endDate = ! empty($filterParams['end_date']) ? Carbon::parse($filterParams['end_date'])->endOfDay() : $now->copy()->endOfDay();
                 $daysCount = max(1, $startDate->diffInDays($endDate) + 1);
                 break;
             case '7days':

@@ -20,6 +20,7 @@ class SendTicketEmailJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public int $backoff = 10;
 
     public function __construct(
@@ -29,7 +30,7 @@ class SendTicketEmailJob implements ShouldQueue
     public function handle(): void
     {
         try {
-            if (!empty($this->booking->user_email)) {
+            if (! empty($this->booking->user_email)) {
                 Mail::to($this->booking->user_email)->send(new TicketConfirmationMail($this->booking));
                 Log::info("✅ [Queue Job] Đã gửi email xác nhận vé #{$this->booking->booking_code} tới {$this->booking->user_email}");
             }

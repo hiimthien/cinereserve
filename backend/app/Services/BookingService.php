@@ -53,15 +53,15 @@ class BookingService
             }
 
             // 3. Tính tiền combo bắp nước nếu có
-            if (!empty($data['combos'])) {
+            if (! empty($data['combos'])) {
                 foreach ($data['combos'] as $combo) {
                     $totalAmount += (int) ($combo['price'] ?? 65000) * (int) $combo['quantity'];
                 }
             }
 
             // 4. Tạo mã đặt vé & QR Code duy nhất
-            $bookingCode = 'CR-' . strtoupper(Str::random(4)) . '-' . date('dmy');
-            $qrHash = hash('sha256', "{$bookingCode}|{$showtimeId}|" . implode(',', $seatIds) . "|cinereserve_secret");
+            $bookingCode = 'CR-'.strtoupper(Str::random(4)).'-'.date('dmy');
+            $qrHash = hash('sha256', "{$bookingCode}|{$showtimeId}|".implode(',', $seatIds).'|cinereserve_secret');
 
             $booking = Booking::create([
                 'booking_code' => $bookingCode,
@@ -99,7 +99,7 @@ class BookingService
                 'payment_method' => $data['payment_method'],
                 'amount' => $totalAmount,
                 'status' => 'success',
-                'transaction_id' => 'TXN-' . strtoupper(Str::random(8)),
+                'transaction_id' => 'TXN-'.strtoupper(Str::random(8)),
             ]);
 
             // Load relations đầy đủ để trả về Resource

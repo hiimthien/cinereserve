@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Jobs\SendWelcomeVoucherEmailJob;
+use App\Mail\PasswordResetOtpMail;
+use App\Models\Booking;
 use App\Models\User;
 use App\Models\Voucher;
 use App\Repositories\Contracts\UserRepositoryInterface;
@@ -26,7 +29,7 @@ class AuthService
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'phone' => $data['phone'] ?? '0388145796',
-            'avatar' => 'https://api.dicebear.com/7.x/bottts/svg?seed=' . urlencode($data['name']),
+            'avatar' => 'https://api.dicebear.com/7.x/bottts/svg?seed='.urlencode($data['name']),
             'points' => 20, // Tặng 20 điểm thưởng gia nhập ban đầu
             'membership_tier' => 'member',
             'total_spent' => 0,
@@ -37,7 +40,7 @@ class AuthService
 
         // Đồng bộ hóa các đơn đặt vé trước đó của Email này
         try {
-            $pastBookings = \App\Models\Booking::where('user_email', $user->email)
+            $pastBookings = Booking::where('user_email', $user->email)
                 ->where('status', 'confirmed')
                 ->get();
 
@@ -53,14 +56,14 @@ class AuthService
                 ]);
             }
         } catch (Exception $syncEx) {
-            Log::warning('Không thể đồng bộ vé cũ khi đăng ký: ' . $syncEx->getMessage());
+            Log::warning('Không thể đồng bộ vé cũ khi đăng ký: '.$syncEx->getMessage());
         }
 
         // Gửi email chào mừng qua Queue Job
         try {
             $welcomeVoucher = Voucher::where('code', 'CHAOBANMOI')->first();
-            if ($welcomeVoucher && !empty($user->email)) {
-                \App\Jobs\SendWelcomeVoucherEmailJob::dispatch(
+            if ($welcomeVoucher && ! empty($user->email)) {
+                SendWelcomeVoucherEmailJob::dispatch(
                     user: $user,
                     voucher: $welcomeVoucher,
                     badgeText: 'Chào Mừng Thành Viên Mới',
@@ -69,7 +72,7 @@ class AuthService
                 );
             }
         } catch (Exception $e) {
-            Log::error('Lỗi dispatch Queue Job chào mừng: ' . $e->getMessage());
+            Log::error('Lỗi dispatch Queue Job chào mừng: '.$e->getMessage());
         }
 
         return [
@@ -82,7 +85,7 @@ class AuthService
     {
         $user = User::where('email', $email)->first();
 
-        if (!$user || !Hash::check($password, $user->password)) {
+        if (! $user || ! Hash::check($password, $user->password)) {
             return null;
         }
 
@@ -98,13 +101,13 @@ class AuthService
     {
         $user = User::where('email', $email)->first();
 
-        if (!$user) {
+        if (! $user) {
             $user = User::create([
                 'name' => $name,
                 'email' => $email,
                 'password' => Hash::make(uniqid('google_')),
                 'phone' => '0388145796',
-                'avatar' => $avatar ?: 'https://api.dicebear.com/7.x/bottts/svg?seed=' . urlencode($name),
+                'avatar' => $avatar ?: 'https://api.dicebear.com/7.x/bottts/svg?seed='.urlencode($name),
                 'points' => 50,
                 'membership_tier' => 'member',
                 'total_spent' => 0,
@@ -115,7 +118,7 @@ class AuthService
             try {
                 $welcomeVoucher = Voucher::where('code', 'CHAOBANMOI')->first();
                 if ($welcomeVoucher) {
-                    \App\Jobs\SendWelcomeVoucherEmailJob::dispatch(
+                    SendWelcomeVoucherEmailJob::dispatch(
                         user: $user,
                         voucher: $welcomeVoucher,
                         badgeText: 'Chào Mừng Gia Nhập Qua Google',
@@ -124,7 +127,7 @@ class AuthService
                     );
                 }
             } catch (Exception $e) {
-                Log::error('Lỗi dispatch Queue Job google auth: ' . $e->getMessage());
+                Log::error('Lỗi dispatch Queue Job google auth: '.$e->getMessage());
             }
         }
 
@@ -140,7 +143,7 @@ class AuthService
     {
         $user = User::where('email', $email)->first();
 
-        if (!$user) {
+        if (! $user) {
             throw new Exception('Không tìm thấy tài khoản với email này trong hệ thống.');
         }
 
@@ -150,12 +153,12 @@ class AuthService
         Cache::put($cacheKey, $otp, 600);
 
         try {
-            Mail::to($user->email)->send(new \App\Mail\PasswordResetOtpMail(
+            Mail::to($user->email)->send(new PasswordResetOtpMail(
                 user: $user,
                 otpCode: $otp
             ));
         } catch (Exception $e) {
-            Log::error('Lỗi gửi email OTP đặt lại mật khẩu: ' . $e->getMessage());
+            Log::error('Lỗi gửi email OTP đặt lại mật khẩu: '.$e->getMessage());
         }
 
         return [
@@ -168,14 +171,14 @@ class AuthService
     {
         $user = User::where('email', $email)->first();
 
-        if (!$user) {
+        if (! $user) {
             throw new Exception('Không tìm thấy tài khoản tương ứng.');
         }
 
         $cacheKey = "cinereserve:password_reset:{$user->email}";
         $cachedOtp = Cache::get($cacheKey);
 
-        if (!$cachedOtp || $cachedOtp !== $otp) {
+        if (! $cachedOtp || $cachedOtp !== $otp) {
             throw new Exception('Mã OTP không hợp lệ hoặc đã hết hạn (10 phút).');
         }
 
@@ -194,7 +197,7 @@ class AuthService
 
     public function changePassword(User $user, string $currentPassword, string $newPassword): void
     {
-        if (!Hash::check($currentPassword, $user->password)) {
+        if (! Hash::check($currentPassword, $user->password)) {
             throw new Exception('Mật khẩu hiện tại không chính xác.');
         }
 

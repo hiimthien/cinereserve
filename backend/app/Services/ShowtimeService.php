@@ -12,6 +12,7 @@ use App\Repositories\Contracts\ShowtimeRepositoryInterface;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 
 class ShowtimeService
@@ -34,9 +35,10 @@ class ShowtimeService
     public function findShowtime(int $id): Showtime
     {
         $showtime = $this->showtimeRepository->findById($id);
-        if (!$showtime) {
-            throw new \Illuminate\Database\Eloquent\ModelNotFoundException("Không tìm thấy suất chiếu với ID {$id}");
+        if (! $showtime) {
+            throw new ModelNotFoundException("Không tìm thấy suất chiếu với ID {$id}");
         }
+
         return $showtime;
     }
 
@@ -59,7 +61,7 @@ class ShowtimeService
         $priceVip = isset($data['price_vip']) ? (float) $data['price_vip'] : ($basePrice + 15000);
         $priceCouple = isset($data['price_couple']) ? (float) $data['price_couple'] : ($basePrice * 2);
 
-        $endTime = $data['end_time'] ?? date('H:i', strtotime($data['start_time'] . ' + 120 minutes'));
+        $endTime = $data['end_time'] ?? date('H:i', strtotime($data['start_time'].' + 120 minutes'));
 
         $showtime = $this->showtimeRepository->create([
             'movie_id' => (int) $data['movie_id'],
@@ -102,7 +104,9 @@ class ShowtimeService
 
                 foreach ($cinemas as $cinema) {
                     $room = $cinema->rooms->first();
-                    if (!$room) continue;
+                    if (! $room) {
+                        continue;
+                    }
 
                     foreach ($timeSlots as $slotTime) {
                         $this->showtimeRepository->updateOrCreate(
@@ -114,7 +118,7 @@ class ShowtimeService
                                 'start_time' => $slotTime,
                             ],
                             [
-                                'end_time' => date('H:i', strtotime($slotTime . ' + 120 minutes')),
+                                'end_time' => date('H:i', strtotime($slotTime.' + 120 minutes')),
                                 'base_price' => $basePrice,
                                 'price_vip' => $priceVip,
                                 'price_couple' => $priceCouple,

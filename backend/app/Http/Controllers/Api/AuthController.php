@@ -45,7 +45,7 @@ class AuthController extends Controller
         $validated = $request->validated();
         $result = $this->authService->login((string) $validated['email'], (string) $validated['password']);
 
-        if (!$result) {
+        if (! $result) {
             return response()->json([
                 'success' => false,
                 'message' => 'Email hoặc mật khẩu không chính xác.',
@@ -87,7 +87,7 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             $user = User::where('email', 'caoluongthienk1@gmail.com')->first();
         }
 
@@ -170,14 +170,14 @@ class AuthController extends Controller
         $validated = $request->validated();
 
         $user = $request->user();
-        if (!$user && isset($validated['user_id'])) {
+        if (! $user && isset($validated['user_id'])) {
             $user = User::find($validated['user_id']);
         }
-        if (!$user && isset($validated['email'])) {
+        if (! $user && isset($validated['email'])) {
             $user = User::where('email', $validated['email'])->first();
         }
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
                 'message' => 'Vui lòng đăng nhập để đổi mật khẩu.',

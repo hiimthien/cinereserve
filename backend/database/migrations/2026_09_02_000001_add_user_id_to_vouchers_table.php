@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (Schema::hasTable('vouchers') && !Schema::hasColumn('vouchers', 'user_id')) {
+        if (Schema::hasTable('vouchers') && ! Schema::hasColumn('vouchers', 'user_id')) {
             Schema::table('vouchers', function (Blueprint $table) {
                 $table->foreignId('user_id')->nullable()->after('id')->constrained('users')->nullOnDelete();
             });

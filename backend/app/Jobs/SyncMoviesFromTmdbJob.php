@@ -18,6 +18,7 @@ class SyncMoviesFromTmdbJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $timeout = 180; // 3 minutes timeout for external TMDB calls
+
     public int $tries = 2;
 
     public function __construct(
@@ -33,7 +34,7 @@ class SyncMoviesFromTmdbJob implements ShouldQueue
             $upcoming = $syncService->syncUpcomingMovies(1);
 
             $total = count($nowPlaying) + count($upcoming);
-            Log::info("✅ [Queue Worker] Đồng bộ thành công {$total} phim từ TMDb (Đang chiếu: " . count($nowPlaying) . ", Sắp chiếu: " . count($upcoming) . ")");
+            Log::info("✅ [Queue Worker] Đồng bộ thành công {$total} phim từ TMDb (Đang chiếu: ".count($nowPlaying).', Sắp chiếu: '.count($upcoming).')');
         } catch (Exception $e) {
             Log::error("❌ [Queue Worker] Lỗi đồng bộ phim TMDb: {$e->getMessage()}");
             throw $e;

@@ -12,8 +12,11 @@ use Illuminate\Support\Str;
 class TmdbMovieSyncService
 {
     protected string $apiKey;
+
     protected string $readToken;
+
     protected string $baseUrl;
+
     protected string $imageBaseUrl;
 
     public function __construct()
@@ -55,7 +58,9 @@ class TmdbMovieSyncService
             if ($response->successful()) {
                 $results = $response->json('results', []);
                 foreach ($results as $item) {
-                    if (empty($item['poster_path'])) continue; // Bỏ qua phim không có poster
+                    if (empty($item['poster_path'])) {
+                        continue;
+                    } // Bỏ qua phim không có poster
                     $movie = $this->processAndSaveMovie($item['id'], 'now_showing');
                     if ($movie) {
                         $movies[] = $movie;
@@ -83,7 +88,9 @@ class TmdbMovieSyncService
             if ($response->successful()) {
                 $results = $response->json('results', []);
                 foreach ($results as $item) {
-                    if (empty($item['poster_path'])) continue; // Bỏ qua phim không có poster
+                    if (empty($item['poster_path'])) {
+                        continue;
+                    } // Bỏ qua phim không có poster
                     $movie = $this->processAndSaveMovie($item['id'], 'coming_soon');
                     if ($movie) {
                         $movies[] = $movie;
@@ -107,7 +114,7 @@ class TmdbMovieSyncService
                 'append_to_response' => 'videos,credits',
             ]);
 
-            if (!$viResponse->successful()) {
+            if (! $viResponse->successful()) {
                 return null;
             }
 
@@ -125,10 +132,10 @@ class TmdbMovieSyncService
                 }
             }
 
-            $title = trim(!empty($viData['title']) ? $viData['title'] : ($enData['title'] ?? 'Phim Chiếu Rạp'));
+            $title = trim(! empty($viData['title']) ? $viData['title'] : ($enData['title'] ?? 'Phim Chiếu Rạp'));
             $originalTitle = trim($viData['original_title'] ?? $title);
-            $overview = !empty($viData['overview']) ? $viData['overview'] : ($enData['overview'] ?? 'Đang cập nhật tóm tắt nội dung phim.');
-            
+            $overview = ! empty($viData['overview']) ? $viData['overview'] : ($enData['overview'] ?? 'Đang cập nhật tóm tắt nội dung phim.');
+
             // Xử lý Poster & Backdrop chất lượng cao
             $posterPath = $viData['poster_path'] ?? ($enData['poster_path'] ?? null);
             $backdropPath = $viData['backdrop_path'] ?? ($enData['backdrop_path'] ?? null);
@@ -138,8 +145,8 @@ class TmdbMovieSyncService
             }
 
             $posterUrl = "{$this->imageBaseUrl}/w780{$posterPath}";
-            $backdropUrl = $backdropPath 
-                ? "{$this->imageBaseUrl}/original{$backdropPath}" 
+            $backdropUrl = $backdropPath
+                ? "{$this->imageBaseUrl}/original{$backdropPath}"
                 : $posterUrl;
 
             // Xử lý Trailer YouTube
@@ -154,9 +161,9 @@ class TmdbMovieSyncService
             $trailerUrl = $trailerKey ? "https://www.youtube.com/embed/{$trailerKey}" : null;
 
             // Xử lý Đạo diễn & Diễn viên
-            $credits = !empty($viData['credits']) ? $viData['credits'] : ($enData['credits'] ?? []);
+            $credits = ! empty($viData['credits']) ? $viData['credits'] : ($enData['credits'] ?? []);
             $director = null;
-            if (!empty($credits['crew'])) {
+            if (! empty($credits['crew'])) {
                 foreach ($credits['crew'] as $crew) {
                     if ($crew['job'] === 'Director') {
                         $director = $crew['name'];
@@ -166,30 +173,34 @@ class TmdbMovieSyncService
             }
 
             $cast = [];
-            if (!empty($credits['cast'])) {
+            if (! empty($credits['cast'])) {
                 $topCast = array_slice($credits['cast'], 0, 5);
-                $cast = array_map(fn($c) => $c['name'], $topCast);
+                $cast = array_map(fn ($c) => $c['name'], $topCast);
             }
 
             // Xử lý Thể loại (Genres)
             $genres = [];
-            if (!empty($viData['genres'])) {
-                $genres = array_map(fn($g) => $g['name'], $viData['genres']);
-            } elseif (!empty($enData['genres'])) {
-                $genres = array_map(fn($g) => $g['name'], $enData['genres']);
+            if (! empty($viData['genres'])) {
+                $genres = array_map(fn ($g) => $g['name'], $viData['genres']);
+            } elseif (! empty($enData['genres'])) {
+                $genres = array_map(fn ($g) => $g['name'], $enData['genres']);
             }
 
             $duration = (int) ($viData['runtime'] ?? ($enData['runtime'] ?? 115));
-            if ($duration <= 0) $duration = 115;
+            if ($duration <= 0) {
+                $duration = 115;
+            }
 
-            $releaseDate = !empty($viData['release_date']) ? $viData['release_date'] : date('Y-m-d');
+            $releaseDate = ! empty($viData['release_date']) ? $viData['release_date'] : date('Y-m-d');
             $rating = round((float) ($viData['vote_average'] ?? 8.0), 1);
-            if ($rating <= 0) $rating = 8.5;
+            if ($rating <= 0) {
+                $rating = 8.5;
+            }
 
             // Xác định nhãn phân loại độ tuổi theo chuẩn Cục Điện Ảnh
             $ageRating = 'T13';
             $genresJoined = mb_strtolower(implode(' ', $genres));
-            if (!empty($viData['adult']) || str_contains($genresJoined, 'kinh dị') || str_contains($genresJoined, 'horror') || str_contains($genresJoined, 'tội phạm')) {
+            if (! empty($viData['adult']) || str_contains($genresJoined, 'kinh dị') || str_contains($genresJoined, 'horror') || str_contains($genresJoined, 'tội phạm')) {
                 $ageRating = 'T18';
             } elseif (str_contains($genresJoined, 'hành động') || str_contains($genresJoined, 'giật gân') || str_contains($genresJoined, 'thriller')) {
                 $ageRating = 'T16';
@@ -202,7 +213,7 @@ class TmdbMovieSyncService
                 ->orWhere('original_title', $originalTitle)
                 ->first();
 
-            $slug = $existingMovie ? $existingMovie->slug : Str::slug($originalTitle . '-' . $tmdbId);
+            $slug = $existingMovie ? $existingMovie->slug : Str::slug($originalTitle.'-'.$tmdbId);
 
             return Movie::updateOrCreate(
                 ['id' => $existingMovie?->id ?? null],
@@ -225,17 +236,18 @@ class TmdbMovieSyncService
                 ]
             );
         } catch (\Exception $e) {
-            Log::error("Lỗi sync phim TMDb ID {$tmdbId}: " . $e->getMessage());
+            Log::error("Lỗi sync phim TMDb ID {$tmdbId}: ".$e->getMessage());
+
             return null;
         }
     }
 
     protected function makeRequest(string $endpoint, array $params = [])
     {
-        $url = rtrim($this->baseUrl, '/') . '/' . ltrim($endpoint, '/');
+        $url = rtrim($this->baseUrl, '/').'/'.ltrim($endpoint, '/');
 
         $request = Http::withoutVerifying()->timeout(15);
-        if (!empty($this->readToken)) {
+        if (! empty($this->readToken)) {
             $request = $request->withToken($this->readToken);
         } else {
             $params['api_key'] = $this->apiKey;

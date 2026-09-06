@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Create snacks table
-        if (!Schema::hasTable('snacks')) {
+        if (! Schema::hasTable('snacks')) {
             Schema::create('snacks', function (Blueprint $table) {
                 $table->id();
                 $table->string('name');
@@ -23,7 +23,7 @@ return new class extends Migration
         }
 
         // 2. Add combos JSON column to bookings table
-        if (Schema::hasTable('bookings') && !Schema::hasColumn('bookings', 'combos')) {
+        if (Schema::hasTable('bookings') && ! Schema::hasColumn('bookings', 'combos')) {
             Schema::table('bookings', function (Blueprint $table) {
                 $table->json('combos')->nullable()->after('total_amount');
             });

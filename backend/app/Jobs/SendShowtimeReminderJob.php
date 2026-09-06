@@ -26,20 +26,21 @@ class SendShowtimeReminderJob implements ShouldQueue
     {
         $email = $this->booking->customer_email ?: $this->booking->user?->email;
 
-        if (!$email) {
+        if (! $email) {
             Log::warning("Cannot send showtime reminder: Booking #{$this->booking->id} has no valid email.");
+
             return;
         }
 
         try {
             Mail::to($email)->send(new ShowtimeReminderMail($this->booking));
-            
+
             // Mark reminder as sent
             $this->booking->update(['reminder_sent_at' => now()]);
 
             Log::info("Sent showtime reminder email for Booking #{$this->booking->booking_code} to {$email}");
         } catch (\Throwable $e) {
-            Log::error("Failed to send showtime reminder for Booking #{$this->booking->id}: " . $e->getMessage());
+            Log::error("Failed to send showtime reminder for Booking #{$this->booking->id}: ".$e->getMessage());
         }
     }
 }

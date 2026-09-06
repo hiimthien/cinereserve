@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Mail\TicketConfirmationMail;
+use App\Jobs\SendTicketEmailJob;
 use App\Models\Booking;
 use Exception;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +14,9 @@ use Illuminate\Support\Facades\Mail;
 class VNPayService
 {
     private string $tmnCode;
+
     private string $hashSecret;
+
     private string $vnpUrl;
 
     public function __construct()
@@ -30,7 +32,7 @@ class VNPayService
     public function createPaymentUrl(Booking $booking, string $returnUrl, string $ipAddr = '127.0.0.1'): string
     {
         $vnp_TxnRef = $booking->booking_code;
-        $vnp_OrderInfo = "Thanh toan ve CineReserve - " . $booking->booking_code;
+        $vnp_OrderInfo = 'Thanh toan ve CineReserve - '.$booking->booking_code;
         $vnp_OrderType = 'billpayment';
         $vnp_Amount = (int) ($booking->total_amount * 100); // VNPay yêu cầu nhân 100
         $vnp_Locale = 'vn';
@@ -59,16 +61,16 @@ class VNPayService
         $hashdata = '';
         foreach ($inputData as $key => $value) {
             if ($i == 1) {
-                $hashdata .= '&' . urlencode((string)$key) . "=" . urlencode((string)$value);
+                $hashdata .= '&'.urlencode((string) $key).'='.urlencode((string) $value);
             } else {
-                $hashdata .= urlencode((string)$key) . "=" . urlencode((string)$value);
+                $hashdata .= urlencode((string) $key).'='.urlencode((string) $value);
                 $i = 1;
             }
-            $query .= urlencode((string)$key) . "=" . urlencode((string)$value) . '&';
+            $query .= urlencode((string) $key).'='.urlencode((string) $value).'&';
         }
 
         $vnp_SecureHash = hash_hmac('sha512', $hashdata, $this->hashSecret);
-        $vnpUrl = $this->vnpUrl . "?" . $query . 'vnp_SecureHash=' . $vnp_SecureHash;
+        $vnpUrl = $this->vnpUrl.'?'.$query.'vnp_SecureHash='.$vnp_SecureHash;
 
         return $vnpUrl;
     }
@@ -86,9 +88,9 @@ class VNPayService
         $i = 0;
         foreach ($inputData as $key => $value) {
             if ($i == 1) {
-                $hashData .= '&' . urlencode((string)$key) . "=" . urlencode((string)$value);
+                $hashData .= '&'.urlencode((string) $key).'='.urlencode((string) $value);
             } else {
-                $hashData .= urlencode((string)$key) . "=" . urlencode((string)$value);
+                $hashData .= urlencode((string) $key).'='.urlencode((string) $value);
                 $i = 1;
             }
         }
@@ -98,6 +100,7 @@ class VNPayService
         // 1. Kiểm tra chữ ký bảo mật HMAC-SHA512
         if (hash_equals($secureHash, $vnp_SecureHash) === false) {
             Log::warning('VNPay IPN: Chữ ký không hợp lệ', ['received' => $vnp_SecureHash, 'calculated' => $secureHash]);
+
             return [
                 'RspCode' => '97',
                 'Message' => 'Invalid Signature',
@@ -105,7 +108,7 @@ class VNPayService
         }
 
         $bookingCode = $inputData['vnp_TxnRef'] ?? '';
-        $vnpAmount = ((float)($inputData['vnp_Amount'] ?? 0)) / 100;
+        $vnpAmount = ((float) ($inputData['vnp_Amount'] ?? 0)) / 100;
         $responseCode = $inputData['vnp_ResponseCode'] ?? '';
         $transactionNo = $inputData['vnp_TransactionNo'] ?? null;
         $bankCode = $inputData['vnp_BankCode'] ?? null;
@@ -113,7 +116,7 @@ class VNPayService
         /** @var Booking|null $booking */
         $booking = Booking::where('booking_code', $bookingCode)->first();
 
-        if (!$booking) {
+        if (! $booking) {
             return [
                 'RspCode' => '01',
                 'Message' => 'Order not found',
@@ -148,11 +151,11 @@ class VNPayService
             // Gửi mail vé điện tử qua Queue Job (Background Worker)
             try {
                 $booking->load(['showtime.movie', 'showtime.cinema', 'showtime.room', 'bookingSeats.seat']);
-                if (!empty($booking->user_email)) {
-                    \App\Jobs\SendTicketEmailJob::dispatch($booking);
+                if (! empty($booking->user_email)) {
+                    SendTicketEmailJob::dispatch($booking);
                 }
             } catch (Exception $e) {
-                Log::error('Lỗi dispatch Queue Job gửi vé sau khi VNPay IPN: ' . $e->getMessage());
+                Log::error('Lỗi dispatch Queue Job gửi vé sau khi VNPay IPN: '.$e->getMessage());
             }
 
             return [

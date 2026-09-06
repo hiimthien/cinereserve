@@ -9,7 +9,6 @@ use App\Http\Controllers\Api\Admin\AdminShowtimeController;
 use App\Http\Controllers\Api\Admin\AdminSnackController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\Admin\AdminVoucherController;
-
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\CinemaController;

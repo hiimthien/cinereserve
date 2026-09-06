@@ -34,7 +34,7 @@ class CinemaController extends Controller
             $search = (string) $request->query('search');
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('address', 'like', "%{$search}%");
+                    ->orWhere('address', 'like', "%{$search}%");
             });
         }
 
@@ -65,10 +65,12 @@ class CinemaController extends Controller
         // Gom nhóm theo từng bộ phim
         $movieGroups = [];
         foreach ($showtimes as $st) {
-            if (!$st->movie) continue;
+            if (! $st->movie) {
+                continue;
+            }
 
             $movieId = $st->movie->id;
-            if (!isset($movieGroups[$movieId])) {
+            if (! isset($movieGroups[$movieId])) {
                 $movieGroups[$movieId] = [
                     'movie' => new MovieResource($st->movie),
                     'showtimes' => [],

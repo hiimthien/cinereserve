@@ -39,14 +39,14 @@ class LoyaltyController extends Controller
         $validated = $request->validated();
 
         $user = $request->user();
-        if (!$user && isset($validated['user_id'])) {
+        if (! $user && isset($validated['user_id'])) {
             $user = User::find($validated['user_id']);
         }
-        if (!$user) {
+        if (! $user) {
             $user = User::where('email', 'caoluongthienk1@gmail.com')->first();
         }
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
                 'message' => 'Vui lòng đăng nhập để đổi điểm thưởng.',
@@ -75,14 +75,14 @@ class LoyaltyController extends Controller
     public function myVouchers(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user && $request->has('user_id')) {
+        if (! $user && $request->has('user_id')) {
             $user = User::find($request->user_id);
         }
-        if (!$user && $request->has('email')) {
+        if (! $user && $request->has('email')) {
             $user = User::where('email', $request->email)->first();
         }
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'success' => true,
                 'data' => [],

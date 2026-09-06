@@ -26,12 +26,14 @@ class ReviewRepository implements ReviewRepositoryInterface
     public function delete(int $id): bool
     {
         $review = MovieReview::findOrFail($id);
+
         return (bool) $review->delete();
     }
 
     public function calculateAverageRating(int $movieId): float
     {
         $avg = MovieReview::where('movie_id', $movieId)->avg('rating');
+
         return $avg ? round((float) $avg, 1) : 8.5;
     }
 }

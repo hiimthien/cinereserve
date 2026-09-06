@@ -5,10 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Models\Booking;
-use App\Models\BookingSeat;
 use App\Models\Showtime;
-use App\Models\Snack;
-use App\Models\Voucher;
 use Illuminate\Database\Seeder;
 
 class FixUsdPricesSeeder extends Seeder

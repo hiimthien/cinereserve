@@ -1,5 +1,7 @@
 # CineReserve
 
+[![CineReserve CI Pipeline](https://github.com/hiimthien/cinereserve/actions/workflows/ci.yml/badge.svg)](https://github.com/hiimthien/cinereserve/actions/workflows/ci.yml)
+
 Hệ thống đặt vé xem phim trực tuyến thời gian thực (Real-time Cinema Booking System), tập trung giải quyết bài toán **Concurrency** và **Race Condition khi giữ ghế** trong các đợt mở bán vé cao điểm.
 
 > **Lưu ý:** Đây là dự án cá nhân phục vụ mục đích học tập và xây dựng portfolio kỹ thuật. Các cổng thanh toán (VNPAY, MoMo) được triển khai ở chế độ mô phỏng / sandbox.

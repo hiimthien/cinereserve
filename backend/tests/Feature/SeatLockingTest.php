@@ -19,8 +19,11 @@ class SeatLockingTest extends TestCase
     use RefreshDatabase;
 
     protected Showtime $showtime;
+
     protected Seat $seat1;
+
     protected Seat $seat2;
+
     protected SeatLockingService $seatLockingService;
 
     protected function setUp(): void

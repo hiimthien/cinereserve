@@ -37,7 +37,7 @@ class BookingController extends Controller
                     'last_page' => 1,
                     'per_page' => 6,
                     'total' => 0,
-                ]
+                ],
             ]);
         }
 
@@ -48,7 +48,7 @@ class BookingController extends Controller
             'bookingSeats.seat',
             'payment',
         ])
-        ->where('user_email', $userEmail);
+            ->where('user_email', $userEmail);
 
         // Lọc theo trạng thái vé (all, confirmed, checked_in)
         if ($request->filled('status') && $request->input('status') !== 'all') {
@@ -76,14 +76,14 @@ class BookingController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('booking_code', 'like', "%{$search}%")
-                  ->orWhereHas('showtime.movie', function ($mq) use ($search) {
-                      $mq->where('title', 'like', "%{$search}%")
-                        ->orWhere('original_title', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('showtime.cinema', function ($cq) use ($search) {
-                      $cq->where('name', 'like', "%{$search}%")
-                        ->orWhere('city', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('showtime.movie', function ($mq) use ($search) {
+                        $mq->where('title', 'like', "%{$search}%")
+                            ->orWhere('original_title', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('showtime.cinema', function ($cq) use ($search) {
+                        $cq->where('name', 'like', "%{$search}%")
+                            ->orWhere('city', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -98,7 +98,7 @@ class BookingController extends Controller
                 'last_page' => $paginated->lastPage(),
                 'per_page' => $paginated->perPage(),
                 'total' => $paginated->total(),
-            ]
+            ],
         ]);
     }
 
@@ -142,8 +142,8 @@ class BookingController extends Controller
             'bookingSeats.seat',
             'payment',
         ])
-        ->where('booking_code', $code)
-        ->firstOrFail();
+            ->where('booking_code', $code)
+            ->firstOrFail();
 
         return response()->json([
             'success' => true,

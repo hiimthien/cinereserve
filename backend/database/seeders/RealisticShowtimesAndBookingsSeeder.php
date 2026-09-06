@@ -10,7 +10,6 @@ use App\Models\Cinema;
 use App\Models\Movie;
 use App\Models\Payment;
 use App\Models\Room;
-use App\Models\Seat;
 use App\Models\Showtime;
 use App\Models\User;
 use App\Services\PricingService;
@@ -61,14 +60,16 @@ class RealisticShowtimesAndBookingsSeeder extends Seeder
         $createdShowtimes = [];
 
         // 2. Phân loại phim bom tấn chiếu rạp IMAX
-        $imaxMovies = $movies->filter(fn($m) => in_array($m->slug, [
+        $imaxMovies = $movies->filter(fn ($m) => in_array($m->slug, [
             'deadpool-and-wolverine',
             'dune-part-two',
             'spider-man-across-the-spider-verse',
             'godzilla-x-kong-the-new-empire',
-            'alien-romulus-sneak-show'
+            'alien-romulus-sneak-show',
         ]));
-        if ($imaxMovies->isEmpty()) $imaxMovies = $movies;
+        if ($imaxMovies->isEmpty()) {
+            $imaxMovies = $movies;
+        }
 
         // 3. Sinh lịch chiếu cho 30 Cụm rạp x Phòng chiếu trong 7 ngày tới (Hôm nay -> +6 ngày)
         for ($dayOffset = 0; $dayOffset < 7; $dayOffset++) {
@@ -81,7 +82,7 @@ class RealisticShowtimesAndBookingsSeeder extends Seeder
 
                     // Chọn phim phù hợp định dạng phòng
                     $moviePool = $isImax ? $imaxMovies : $movies;
-                    
+
                     // Mỗi phòng chiếu 3 - 5 suất/ngày
                     $dailySlots = collect($timeSlots)->random(rand(3, 5))->sort()->values();
 
@@ -113,7 +114,9 @@ class RealisticShowtimesAndBookingsSeeder extends Seeder
 
             // Chọn ngẫu nhiên 6 rạp mỗi ngày trong quá khứ để tạo suất chiếu lịch sử
             foreach ($cinemas->random(min(6, $cinemas->count())) as $cinema) {
-                if ($cinema->rooms->isEmpty()) continue;
+                if ($cinema->rooms->isEmpty()) {
+                    continue;
+                }
                 $room = $cinema->rooms->first();
                 $movie = $movies->random();
 
@@ -141,16 +144,18 @@ class RealisticShowtimesAndBookingsSeeder extends Seeder
         // 5. Tạo 80+ Đơn Đặt Vé Lịch Sử (Đã Hoàn Thành) để lấp đầy Doanh Thu Dashboard
         foreach ($historicalShowtimes as $histSt) {
             $room = Room::with('seats')->find($histSt->room_id);
-            if (!$room || $room->seats->isEmpty()) continue;
+            if (! $room || $room->seats->isEmpty()) {
+                continue;
+            }
 
             $seatsCount = rand(2, 6);
             $selectedSeats = $room->seats->random($seatsCount);
             $user = $users->random();
             $combos = rand(0, 1) ? collect($sampleCombos)->random() : [];
-            $comboTotal = collect($combos)->sum(fn($c) => $c['price'] * $c['quantity']);
+            $comboTotal = collect($combos)->sum(fn ($c) => $c['price'] * $c['quantity']);
             $seatsTotal = $seatsCount * 95000;
             $totalAmount = $seatsTotal + $comboTotal;
-            $bookingCode = 'CR' . strtoupper(Str::random(6));
+            $bookingCode = 'CR'.strtoupper(Str::random(6));
 
             $histBooking = Booking::create([
                 'booking_code' => $bookingCode,
@@ -171,7 +176,7 @@ class RealisticShowtimesAndBookingsSeeder extends Seeder
 
             Payment::create([
                 'booking_id' => $histBooking->id,
-                'transaction_id' => 'TXN' . strtoupper(Str::random(10)),
+                'transaction_id' => 'TXN'.strtoupper(Str::random(10)),
                 'provider' => rand(0, 1) ? 'vnpay' : 'momo',
                 'amount' => $totalAmount,
                 'status' => 'success',
@@ -187,8 +192,9 @@ class RealisticShowtimesAndBookingsSeeder extends Seeder
         }
 
         // 6. Tạo 16 Đơn Đặt Vé Mẫu Hôm Nay & Ngày Mai Cho Các User Thực Tế
-        $hotShowtimes = collect($createdShowtimes)->filter(function ($st) use ($today) {
+        $hotShowtimes = collect($createdShowtimes)->filter(function ($st) {
             $showDate = Carbon::parse($st->show_date);
+
             return $showDate->isToday() || $showDate->isTomorrow();
         });
 
@@ -196,12 +202,14 @@ class RealisticShowtimesAndBookingsSeeder extends Seeder
         foreach ($hotShowtimes->take(16) as $st) {
             $bookingIndex++;
             $room = Room::with('seats')->find($st->room_id);
-            if (!$room || $room->seats->isEmpty()) continue;
+            if (! $room || $room->seats->isEmpty()) {
+                continue;
+            }
 
             $seatsToBook = $room->seats->random(rand(2, 4));
             $targetUser = $users[$bookingIndex % $users->count()];
 
-            $bookingCode = 'CR' . strtoupper(Str::random(6));
+            $bookingCode = 'CR'.strtoupper(Str::random(6));
             $status = 'confirmed';
             $checkInStatus = 'pending';
             $checkedInAt = null;
@@ -227,7 +235,7 @@ class RealisticShowtimesAndBookingsSeeder extends Seeder
             }
 
             $combos = collect($sampleCombos)->random();
-            $comboTotal = collect($combos)->sum(fn($c) => $c['price'] * $c['quantity']);
+            $comboTotal = collect($combos)->sum(fn ($c) => $c['price'] * $c['quantity']);
             $totalAmount = $seatsTotal + $comboTotal;
 
             $booking = Booking::create([
@@ -249,7 +257,7 @@ class RealisticShowtimesAndBookingsSeeder extends Seeder
 
             Payment::create([
                 'booking_id' => $booking->id,
-                'transaction_id' => 'TXN' . strtoupper(Str::random(10)),
+                'transaction_id' => 'TXN'.strtoupper(Str::random(10)),
                 'provider' => $bookingIndex % 2 === 0 ? 'vnpay' : 'momo',
                 'amount' => $totalAmount,
                 'status' => $status === 'confirmed' ? 'success' : 'failed',
@@ -267,11 +275,13 @@ class RealisticShowtimesAndBookingsSeeder extends Seeder
         // 7. Tạo ghế đã bán (Occupied Red Seats) cho 60+ suất chiếu hôm nay để phòng rạp đông đúc như thật
         foreach ($hotShowtimes->skip(16)->take(60) as $st) {
             $room = Room::with('seats')->find($st->room_id);
-            if (!$room || $room->seats->isEmpty()) continue;
+            if (! $room || $room->seats->isEmpty()) {
+                continue;
+            }
 
             $randomSeats = $room->seats->random(rand(8, 22)); // 15 - 25% ghế đã có người mua
             $dummyBooking = Booking::create([
-                'booking_code' => 'CR' . strtoupper(Str::random(6)),
+                'booking_code' => 'CR'.strtoupper(Str::random(6)),
                 'user_id' => $users->random()->id,
                 'showtime_id' => $st->id,
                 'user_name' => 'Khán Giả Rạp',
@@ -280,12 +290,12 @@ class RealisticShowtimesAndBookingsSeeder extends Seeder
                 'total_amount' => $randomSeats->count() * 95000,
                 'status' => 'confirmed',
                 'check_in_status' => 'pending',
-                'qr_code' => 'CR' . strtoupper(Str::random(6)),
+                'qr_code' => 'CR'.strtoupper(Str::random(6)),
             ]);
 
             Payment::create([
                 'booking_id' => $dummyBooking->id,
-                'transaction_id' => 'TXN' . strtoupper(Str::random(10)),
+                'transaction_id' => 'TXN'.strtoupper(Str::random(10)),
                 'provider' => 'vnpay',
                 'amount' => $randomSeats->count() * 95000,
                 'status' => 'success',

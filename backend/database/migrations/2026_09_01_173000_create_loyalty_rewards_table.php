@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (!Schema::hasTable('loyalty_rewards')) {
+        if (! Schema::hasTable('loyalty_rewards')) {
             Schema::create('loyalty_rewards', function (Blueprint $table) {
                 $table->id();
                 $table->string('reward_key')->unique();

@@ -20,23 +20,23 @@ class BookingRepository implements BookingRepositoryInterface
             'payment',
         ]);
 
-        if (!empty($filters['status']) && $filters['status'] !== 'all') {
+        if (! empty($filters['status']) && $filters['status'] !== 'all') {
             $query->where('status', $filters['status']);
         }
 
-        if (!empty($filters['cinema_id']) && $filters['cinema_id'] !== 'all') {
+        if (! empty($filters['cinema_id']) && $filters['cinema_id'] !== 'all') {
             $cinemaId = (int) $filters['cinema_id'];
-            $query->whereHas('showtime', fn($q) => $q->where('cinema_id', $cinemaId));
+            $query->whereHas('showtime', fn ($q) => $q->where('cinema_id', $cinemaId));
         }
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('booking_code', 'like', "%{$search}%")
-                  ->orWhere('user_name', 'like', "%{$search}%")
-                  ->orWhere('user_email', 'like', "%{$search}%")
-                  ->orWhere('user_phone', 'like', "%{$search}%")
-                  ->orWhereHas('showtime.movie', fn($mq) => $mq->where('title', 'like', "%{$search}%"));
+                    ->orWhere('user_name', 'like', "%{$search}%")
+                    ->orWhere('user_email', 'like', "%{$search}%")
+                    ->orWhere('user_phone', 'like', "%{$search}%")
+                    ->orWhereHas('showtime.movie', fn ($mq) => $mq->where('title', 'like', "%{$search}%"));
             });
         }
 
@@ -59,6 +59,7 @@ class BookingRepository implements BookingRepositoryInterface
         $booking = Booking::findOrFail($id);
         $attributes = array_merge(['status' => $status], $extraAttributes);
         $booking->update($attributes);
+
         return $booking->fresh(['showtime.movie', 'showtime.cinema', 'showtime.room', 'bookingSeats.seat', 'payment']);
     }
 }

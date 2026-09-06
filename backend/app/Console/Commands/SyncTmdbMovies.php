@@ -44,7 +44,7 @@ class SyncTmdbMovies extends Command
         $this->output->progressFinish();
 
         $this->newLine();
-        $this->info("✅ Đồng bộ thành công!");
+        $this->info('✅ Đồng bộ thành công!');
         $this->table(
             ['Danh mục', 'Số lượng phim cập nhật'],
             [

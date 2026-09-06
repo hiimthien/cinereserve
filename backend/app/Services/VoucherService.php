@@ -27,14 +27,16 @@ class VoucherService
     public function createVoucher(array $data): Voucher
     {
         $data['code'] = strtoupper(trim($data['code']));
+
         return $this->voucherRepository->create($data);
     }
 
     public function updateVoucher(int $id, array $data): Voucher
     {
-        if (!empty($data['code'])) {
+        if (! empty($data['code'])) {
             $data['code'] = strtoupper(trim($data['code']));
         }
+
         return $this->voucherRepository->update($id, $data);
     }
 
@@ -47,7 +49,7 @@ class VoucherService
     {
         $voucher = $this->voucherRepository->findByCode($code);
 
-        if (!$voucher || !$voucher->is_active) {
+        if (! $voucher || ! $voucher->is_active) {
             return ['valid' => false, 'message' => 'Mã giảm giá không tồn tại hoặc đã bị khóa.'];
         }
 
@@ -63,7 +65,7 @@ class VoucherService
         if ($voucher->min_order_amount > 0 && $totalOrder < $voucher->min_order_amount) {
             return [
                 'valid' => false,
-                'message' => 'Đơn hàng chưa đạt giá trị tối thiểu ' . number_format($voucher->min_order_amount) . 'đ để áp dụng voucher này.',
+                'message' => 'Đơn hàng chưa đạt giá trị tối thiểu '.number_format($voucher->min_order_amount).'đ để áp dụng voucher này.',
             ];
         }
 
@@ -87,7 +89,7 @@ class VoucherService
             'valid' => true,
             'voucher' => $voucher,
             'discount' => $discount,
-            'message' => "Áp dụng mã {$voucher->code} thành công! Giảm " . number_format($discount) . 'đ',
+            'message' => "Áp dụng mã {$voucher->code} thành công! Giảm ".number_format($discount).'đ',
         ];
     }
 }

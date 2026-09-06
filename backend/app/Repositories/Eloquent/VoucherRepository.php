@@ -14,12 +14,12 @@ class VoucherRepository implements VoucherRepositoryInterface
     {
         $query = Voucher::query();
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('code', 'like', "%{$search}%")
-                  ->orWhere('title', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('title', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
@@ -45,12 +45,14 @@ class VoucherRepository implements VoucherRepositoryInterface
     {
         $voucher = Voucher::findOrFail($id);
         $voucher->update($attributes);
+
         return $voucher->fresh();
     }
 
     public function delete(int $id): bool
     {
         $voucher = Voucher::findOrFail($id);
+
         return (bool) $voucher->delete();
     }
 }

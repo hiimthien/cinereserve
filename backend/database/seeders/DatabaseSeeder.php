@@ -35,11 +35,11 @@ class DatabaseSeeder extends Seeder
             }
         } catch (\Throwable $e) {
             $this->command->warn('⚠️ Không thể kết nối TMDb API, sẽ nạp danh mục phim mẫu.');
-            Log::warning('TMDb Sync fallback in seeder: ' . $e->getMessage());
+            Log::warning('TMDb Sync fallback in seeder: '.$e->getMessage());
         }
 
         // Nếu TMDb trống hoặc chưa có phim, nạp RealisticMoviesSeeder làm dữ liệu gốc
-        if (!$hasTmdbMovies || Movie::count() === 0) {
+        if (! $hasTmdbMovies || Movie::count() === 0) {
             $this->command->info('📦 Nạp danh mục 15 phim bom tấn mẫu chuẩn Cục Điện Ảnh...');
             $this->call(RealisticMoviesSeeder::class);
         }

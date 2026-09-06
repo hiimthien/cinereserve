@@ -21,6 +21,7 @@ class SendWelcomeVoucherEmailJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public int $backoff = 10;
 
     public function __construct(
@@ -34,7 +35,7 @@ class SendWelcomeVoucherEmailJob implements ShouldQueue
     public function handle(): void
     {
         try {
-            if (!empty($this->user->email)) {
+            if (! empty($this->user->email)) {
                 Mail::to($this->user->email)->send(new LoyaltyVoucherMail(
                     user: $this->user,
                     voucher: $this->voucher,

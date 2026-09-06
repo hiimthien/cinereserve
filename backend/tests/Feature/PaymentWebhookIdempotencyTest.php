@@ -5,12 +5,9 @@ namespace Tests\Feature;
 use App\Models\Booking;
 use App\Models\Cinema;
 use App\Models\Movie;
-use App\Models\Payment;
 use App\Models\Room;
-use App\Models\Seat;
 use App\Models\Showtime;
 use App\Models\User;
-use App\Services\VNPayService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
@@ -20,8 +17,11 @@ class PaymentWebhookIdempotencyTest extends TestCase
     use RefreshDatabase;
 
     protected Booking $booking;
+
     protected User $user;
+
     protected string $hashSecret;
+
     protected string $tmnCode;
 
     protected function setUp(): void
@@ -94,14 +94,15 @@ class PaymentWebhookIdempotencyTest extends TestCase
         $i = 0;
         foreach ($params as $key => $value) {
             if ($i == 1) {
-                $hashData .= '&' . urlencode((string)$key) . "=" . urlencode((string)$value);
+                $hashData .= '&'.urlencode((string) $key).'='.urlencode((string) $value);
             } else {
-                $hashData .= urlencode((string)$key) . "=" . urlencode((string)$value);
+                $hashData .= urlencode((string) $key).'='.urlencode((string) $value);
                 $i = 1;
             }
         }
 
         $params['vnp_SecureHash'] = hash_hmac('sha512', $hashData, $this->hashSecret);
+
         return $params;
     }
 
@@ -117,7 +118,7 @@ class PaymentWebhookIdempotencyTest extends TestCase
             'vnp_PayDate' => now()->format('YmdHis'),
         ]);
 
-        $response = $this->getJson('/api/payment/vnpay/ipn?' . http_build_query($payload));
+        $response = $this->getJson('/api/payment/vnpay/ipn?'.http_build_query($payload));
 
         $response->assertStatus(200)
             ->assertJson([
@@ -144,12 +145,12 @@ class PaymentWebhookIdempotencyTest extends TestCase
         ]);
 
         // Call 1st time
-        $response1 = $this->getJson('/api/payment/vnpay/ipn?' . http_build_query($payload));
+        $response1 = $this->getJson('/api/payment/vnpay/ipn?'.http_build_query($payload));
         $response1->assertJson(['RspCode' => '00', 'Message' => 'Confirm Success']);
         $this->assertEquals('confirmed', $this->booking->fresh()->status);
 
         // Call 2nd time (duplicate callback retry from gateway)
-        $response2 = $this->getJson('/api/payment/vnpay/ipn?' . http_build_query($payload));
+        $response2 = $this->getJson('/api/payment/vnpay/ipn?'.http_build_query($payload));
         $response2->assertStatus(200)
             ->assertJson([
                 'RspCode' => '02',

@@ -15,19 +15,19 @@ class ShowtimeRepository implements ShowtimeRepositoryInterface
     {
         $query = Showtime::with(['movie', 'cinema', 'room']);
 
-        if (!empty($filters['date'])) {
+        if (! empty($filters['date'])) {
             $query->whereDate('show_date', $filters['date']);
         }
 
-        if (!empty($filters['cinema_id']) && $filters['cinema_id'] !== 'all') {
+        if (! empty($filters['cinema_id']) && $filters['cinema_id'] !== 'all') {
             $query->where('cinema_id', (int) $filters['cinema_id']);
         }
 
-        if (!empty($filters['movie_id']) && $filters['movie_id'] !== 'all') {
+        if (! empty($filters['movie_id']) && $filters['movie_id'] !== 'all') {
             $query->where('movie_id', (int) $filters['movie_id']);
         }
 
-        if (!empty($filters['status']) && $filters['status'] !== 'all') {
+        if (! empty($filters['status']) && $filters['status'] !== 'all') {
             $query->where('status', $filters['status']);
         }
 
@@ -64,12 +64,14 @@ class ShowtimeRepository implements ShowtimeRepositoryInterface
     {
         $showtime = Showtime::findOrFail($id);
         $showtime->update($attributes);
+
         return $showtime->fresh(['movie', 'cinema', 'room']);
     }
 
     public function delete(int $id): bool
     {
         $showtime = Showtime::findOrFail($id);
+
         return (bool) $showtime->delete();
     }
 }

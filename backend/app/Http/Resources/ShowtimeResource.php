@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Services\PricingService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -23,7 +24,7 @@ class ShowtimeResource extends JsonResource
             'base_price' => (float) $this->base_price,
             'format' => $this->format ?? '2D Standard',
             'status' => $this->status ?? 'scheduled',
-            'dynamic_pricing' => app(\App\Services\PricingService::class)->calculateDynamicPricing($this->resource),
+            'dynamic_pricing' => app(PricingService::class)->calculateDynamicPricing($this->resource),
             'movie' => new MovieResource($this->whenLoaded('movie')),
             'cinema' => $this->whenLoaded('cinema'),
             'room' => $this->whenLoaded('room'),

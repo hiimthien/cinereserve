@@ -38,7 +38,7 @@ class MovieService
 
         $count = Movie::where('slug', 'like', "{$slug}%")->count();
         if ($count > 0) {
-            $slug .= '-' . ($count + 1);
+            $slug .= '-'.($count + 1);
         }
 
         $payload = array_merge($data, [
@@ -52,7 +52,7 @@ class MovieService
 
     public function updateMovie(int $id, array $data): Movie
     {
-        if (isset($data['duration_minutes']) && !isset($data['duration'])) {
+        if (isset($data['duration_minutes']) && ! isset($data['duration'])) {
             $data['duration'] = $data['duration_minutes'];
         }
 

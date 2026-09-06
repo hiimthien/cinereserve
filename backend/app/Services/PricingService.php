@@ -17,22 +17,22 @@ class PricingService
     {
         $dateStr = $showtime->date ?? $showtime->show_date;
         $showDate = $dateStr ? Carbon::parse($dateStr) : Carbon::today();
-        
+
         $startTimeStr = $showtime->start_time ?: '19:00';
         $hour = (int) explode(':', $startTimeStr)[0];
 
         $base = (float) ($showtime->base_price ?: 95000);
-        $vipBase = isset($showtime->price_vip) && (float)$showtime->price_vip > 0 
-            ? (float) $showtime->price_vip 
+        $vipBase = isset($showtime->price_vip) && (float) $showtime->price_vip > 0
+            ? (float) $showtime->price_vip
             : ($base + 15000);
-        $coupleBase = isset($showtime->price_couple) && (float)$showtime->price_couple > 0 
-            ? (float) $showtime->price_couple 
+        $coupleBase = isset($showtime->price_couple) && (float) $showtime->price_couple > 0
+            ? (float) $showtime->price_couple
             : ($base * 2);
 
         $isHappyWednesday = $showDate->isWednesday();
         $isWeekend = in_array($showDate->dayOfWeek, [Carbon::FRIDAY, Carbon::SATURDAY, Carbon::SUNDAY]);
         $isPeakHour = $isWeekend && ($hour >= 18 && $hour <= 23);
-        $isEarlyOrLate = !$isHappyWednesday && !$isWeekend && ($hour < 10 || $hour >= 23);
+        $isEarlyOrLate = ! $isHappyWednesday && ! $isWeekend && ($hour < 10 || $hour >= 23);
 
         $badge = null;
         $badgeVariant = 'neutral';

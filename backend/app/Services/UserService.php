@@ -51,7 +51,7 @@ class UserService
             'points' => (int) ($data['points'] ?? 0),
         ];
 
-        if (!empty($data['password'])) {
+        if (! empty($data['password'])) {
             $payload['password'] = Hash::make($data['password']);
         }
 

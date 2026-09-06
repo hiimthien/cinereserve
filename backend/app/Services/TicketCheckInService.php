@@ -7,7 +7,6 @@ namespace App\Services;
 use App\Models\Booking;
 use App\Repositories\Contracts\BookingRepositoryInterface;
 use Carbon\Carbon;
-use Exception;
 
 class TicketCheckInService
 {
@@ -59,6 +58,7 @@ class TicketCheckInService
         // Kiểm tra đúng rạp
         if ($cinemaId && $booking->showtime && (int) $booking->showtime->cinema_id !== (int) $cinemaId) {
             $ticketCinema = $booking->showtime->cinema?->name ?? 'Rạp khác';
+
             return [
                 'success' => false,
                 'status' => 'WRONG_CINEMA',
@@ -70,6 +70,7 @@ class TicketCheckInService
         // Kiểm tra đã check-in trước đó
         if ($booking->check_in_status === 'checked_in') {
             $checkInTime = $booking->checked_in_at ? Carbon::parse($booking->checked_in_at)->format('H:i:s d/m/Y') : 'Không rõ';
+
             return [
                 'success' => false,
                 'status' => 'ALREADY_CHECKED_IN',
@@ -89,7 +90,7 @@ class TicketCheckInService
         return [
             'success' => true,
             'status' => 'VALID',
-            'message' => "Soát vé thành công! Chúc quý khách xem phim vui vẻ.",
+            'message' => 'Soát vé thành công! Chúc quý khách xem phim vui vẻ.',
             'data' => $this->formatTicketData($booking->fresh([
                 'showtime.movie',
                 'showtime.cinema',

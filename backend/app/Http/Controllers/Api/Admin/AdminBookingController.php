@@ -31,7 +31,7 @@ class AdminBookingController extends Controller
                 'last_page' => $paginated->lastPage(),
                 'per_page' => $paginated->perPage(),
                 'total' => $paginated->total(),
-            ]
+            ],
         ]);
     }
 

@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (Schema::hasTable('bookings') && !Schema::hasColumn('bookings', 'reminder_sent_at')) {
+        if (Schema::hasTable('bookings') && ! Schema::hasColumn('bookings', 'reminder_sent_at')) {
             Schema::table('bookings', function (Blueprint $table) {
                 $table->timestamp('reminder_sent_at')->nullable()->after('checked_in_at');
             });

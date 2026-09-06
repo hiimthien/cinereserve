@@ -35,7 +35,7 @@ class LoyaltyRepository implements LoyaltyRepositoryInterface
                     $q->where('user_id', $user->id);
                 }
                 $q->orWhere('description', 'like', "%{$user->name}%")
-                  ->orWhere('description', 'like', "%{$user->email}%");
+                    ->orWhere('description', 'like', "%{$user->email}%");
             })
             ->orderByDesc('created_at')
             ->get();

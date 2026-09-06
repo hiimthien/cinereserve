@@ -41,7 +41,7 @@ class VoucherController extends Controller
 
         $result = $this->voucherService->applyVoucher($code, $seatsTotal, $snackTotal);
 
-        if (!$result['valid']) {
+        if (! $result['valid']) {
             return response()->json([
                 'success' => false,
                 'message' => $result['message'],

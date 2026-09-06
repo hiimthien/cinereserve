@@ -14,15 +14,15 @@ class SnackRepository implements SnackRepositoryInterface
     {
         $query = Snack::query();
 
-        if (!empty($filters['category']) && $filters['category'] !== 'all') {
+        if (! empty($filters['category']) && $filters['category'] !== 'all') {
             $query->where('category', $filters['category']);
         }
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
@@ -43,12 +43,14 @@ class SnackRepository implements SnackRepositoryInterface
     {
         $snack = Snack::findOrFail($id);
         $snack->update($attributes);
+
         return $snack->fresh();
     }
 
     public function delete(int $id): bool
     {
         $snack = Snack::findOrFail($id);
+
         return (bool) $snack->delete();
     }
 }

@@ -22,12 +22,12 @@ class AnalyticsRepository implements AnalyticsRepositoryInterface
         $query = Booking::where('status', 'confirmed')
             ->whereBetween('created_at', [$startDate, $endDate]);
 
-        if (!empty($cinemaId)) {
-            $query->whereHas('showtime', fn($q) => $q->where('cinema_id', $cinemaId));
+        if (! empty($cinemaId)) {
+            $query->whereHas('showtime', fn ($q) => $q->where('cinema_id', $cinemaId));
         }
 
-        if (!empty($movieId)) {
-            $query->whereHas('showtime', fn($q) => $q->where('movie_id', $movieId));
+        if (! empty($movieId)) {
+            $query->whereHas('showtime', fn ($q) => $q->where('movie_id', $movieId));
         }
 
         return $query;
@@ -41,6 +41,7 @@ class AnalyticsRepository implements AnalyticsRepositoryInterface
     public function getTicketsCount(Carbon $startDate, Carbon $endDate, ?int $cinemaId = null, ?int $movieId = null): int
     {
         $bookingIds = $this->buildBookingsQuery($startDate, $endDate, $cinemaId, $movieId)->pluck('id');
+
         return BookingSeat::whereIn('booking_id', $bookingIds)->count();
     }
 
@@ -89,7 +90,7 @@ class AnalyticsRepository implements AnalyticsRepositoryInterface
             }
         } elseif ($period === 'this_year') {
             for ($m = 1; $m <= 12; $m++) {
-                $monthName = "Tháng " . $m;
+                $monthName = 'Tháng '.$m;
                 $monthRev = round(rand(45, 95) * 1000000);
                 $chartData[] = [
                     'date' => $monthName,
@@ -98,7 +99,7 @@ class AnalyticsRepository implements AnalyticsRepositoryInterface
                 ];
             }
         } else {
-            $stepDays = min(30, (int)$daysCount);
+            $stepDays = min(30, (int) $daysCount);
             for ($i = $stepDays - 1; $i >= 0; $i--) {
                 $curDate = $endDate->copy()->subDays($i);
                 $dateStr = $curDate->toDateString();
@@ -127,6 +128,7 @@ class AnalyticsRepository implements AnalyticsRepositoryInterface
         return Movie::take($limit)->get()->map(function ($m, $idx) {
             $baseRev = [28500000, 21200000, 15800000, 9500000, 6200000];
             $baseTickets = [248, 184, 137, 82, 54];
+
             return [
                 'id' => $m->id,
                 'title' => $m->title,

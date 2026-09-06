@@ -62,6 +62,7 @@ class Voucher extends Model
             if ($this->max_discount_amount && $discount > $this->max_discount_amount) {
                 $discount = $this->max_discount_amount;
             }
+
             return round($discount);
         }
 

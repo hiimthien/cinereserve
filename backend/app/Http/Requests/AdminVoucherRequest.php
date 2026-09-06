@@ -19,7 +19,7 @@ class AdminVoucherRequest extends FormRequest
         $isPost = $this->isMethod('post');
 
         return [
-            'code' => [$isPost ? 'required' : 'sometimes', 'string', 'max:50', 'unique:vouchers,code' . ($id ? ",{$id}" : '')],
+            'code' => [$isPost ? 'required' : 'sometimes', 'string', 'max:50', 'unique:vouchers,code'.($id ? ",{$id}" : '')],
             'title' => [$isPost ? 'required' : 'sometimes', 'string', 'max:150'],
             'discount_type' => [$isPost ? 'required' : 'sometimes', 'string', 'in:fixed,percent'],
             'discount_value' => [$isPost ? 'required' : 'sometimes', 'numeric', 'min:1'],

@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Create vouchers table
-        if (!Schema::hasTable('vouchers')) {
+        if (! Schema::hasTable('vouchers')) {
             Schema::create('vouchers', function (Blueprint $table) {
                 $table->id();
                 $table->string('code')->unique();
@@ -31,10 +31,10 @@ return new class extends Migration
         // 2. Add voucher columns to bookings table
         if (Schema::hasTable('bookings')) {
             Schema::table('bookings', function (Blueprint $table) {
-                if (!Schema::hasColumn('bookings', 'voucher_code')) {
+                if (! Schema::hasColumn('bookings', 'voucher_code')) {
                     $table->string('voucher_code')->nullable()->after('combos');
                 }
-                if (!Schema::hasColumn('bookings', 'discount_amount')) {
+                if (! Schema::hasColumn('bookings', 'discount_amount')) {
                     $table->decimal('discount_amount', 10, 2)->default(0)->after('voucher_code');
                 }
             });

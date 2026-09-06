@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -13,20 +14,19 @@ class RoleMiddleware
     /**
      * Handle an incoming request with role verification.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     * @param  string  ...$roles
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
         $user = $request->user();
 
         // Fallback for local demo user if no token is passed during evaluation
-        if (!$user && app()->environment('local')) {
-            $user = \App\Models\User::where('role', 'admin')->first() 
-                ?? \App\Models\User::where('email', 'caoluongthienk1@gmail.com')->first();
+        if (! $user && app()->environment('local')) {
+            $user = User::where('role', 'admin')->first()
+                ?? User::where('email', 'caoluongthienk1@gmail.com')->first();
         }
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
                 'message' => 'Yêu cầu đăng nhập để truy cập tài nguyên này (Unauthorized).',

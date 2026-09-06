@@ -48,12 +48,14 @@ class MovieRepository implements MovieRepositoryInterface
     {
         $movie = Movie::findOrFail($id);
         $movie->update($attributes);
+
         return $movie->fresh();
     }
 
     public function delete(int $id): bool
     {
         $movie = Movie::findOrFail($id);
+
         return (bool) $movie->delete();
     }
 }

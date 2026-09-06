@@ -22,7 +22,7 @@ class SendShowtimeRemindersCommand extends Command
         $todayStr = $now->format('Y-m-d');
         $isForce = $this->option('force');
 
-        $this->info("🔍 Đang quét các đơn đặt vé có suất chiếu sắp diễn ra...");
+        $this->info('🔍 Đang quét các đơn đặt vé có suất chiếu sắp diễn ra...');
 
         $query = Booking::query()
             ->with(['movie', 'cinema', 'room', 'showtime', 'seats', 'user'])
@@ -37,14 +37,15 @@ class SendShowtimeRemindersCommand extends Command
                     $sub->whereDate('show_date', $todayStr)
                         ->orWhereDate('date', $todayStr);
                 })
-                ->where('start_time', '>=', $now->format('H:i:s'))
-                ->where('start_time', '<=', $twoHoursLater->format('H:i:s'));
+                    ->where('start_time', '>=', $now->format('H:i:s'))
+                    ->where('start_time', '<=', $twoHoursLater->format('H:i:s'));
             });
 
         $bookings = $query->get();
 
         if ($bookings->isEmpty()) {
-            $this->info("✅ Không có đơn đặt vé nào cần gửi nhắc nhở vào lúc này.");
+            $this->info('✅ Không có đơn đặt vé nào cần gửi nhắc nhở vào lúc này.');
+
             return Command::SUCCESS;
         }
 
@@ -60,7 +61,7 @@ class SendShowtimeRemindersCommand extends Command
 
         $bar->finish();
         $this->newLine();
-        $this->info("✨ Đã lên lịch gửi toàn bộ email nhắc nhở thành công!");
+        $this->info('✨ Đã lên lịch gửi toàn bộ email nhắc nhở thành công!');
 
         return Command::SUCCESS;
     }

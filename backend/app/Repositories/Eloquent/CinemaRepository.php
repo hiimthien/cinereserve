@@ -15,16 +15,16 @@ class CinemaRepository implements CinemaRepositoryInterface
     {
         $query = Cinema::withCount(['rooms', 'showtimes']);
 
-        if (!empty($filters['city']) && $filters['city'] !== 'all') {
+        if (! empty($filters['city']) && $filters['city'] !== 'all') {
             $query->where('city', $filters['city']);
         }
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('address', 'like', "%{$search}%")
-                  ->orWhere('city', 'like', "%{$search}%");
+                    ->orWhere('address', 'like', "%{$search}%")
+                    ->orWhere('city', 'like', "%{$search}%");
             });
         }
 
@@ -50,12 +50,14 @@ class CinemaRepository implements CinemaRepositoryInterface
     {
         $cinema = Cinema::findOrFail($id);
         $cinema->update($attributes);
+
         return $cinema->fresh(['rooms']);
     }
 
     public function delete(int $id): bool
     {
         $cinema = Cinema::findOrFail($id);
+
         return (bool) $cinema->delete();
     }
 }

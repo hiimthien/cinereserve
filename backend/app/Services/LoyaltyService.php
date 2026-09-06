@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Jobs\SendWelcomeVoucherEmailJob;
 use App\Models\User;
 use App\Models\Voucher;
 use App\Repositories\Contracts\LoyaltyRepositoryInterface;
@@ -37,7 +38,7 @@ class LoyaltyService
     {
         $reward = $this->loyaltyRepository->findRewardByKey($rewardKey);
 
-        if (!$reward) {
+        if (! $reward) {
             throw new Exception('Phần thưởng này hiện không khả dụng hoặc đã hết.');
         }
 
@@ -55,7 +56,7 @@ class LoyaltyService
             'combo' => 'FREESNACK',
             default => 'REWARD',
         };
-        $voucherCode = strtoupper($prefix . '-' . substr(md5(uniqid((string) mt_rand(), true)), 0, 6));
+        $voucherCode = strtoupper($prefix.'-'.substr(md5(uniqid((string) mt_rand(), true)), 0, 6));
 
         $voucherData = [
             'code' => $voucherCode,
@@ -79,8 +80,8 @@ class LoyaltyService
 
         // Gửi email xác nhận qua Queue Job
         try {
-            if (!empty($user->email)) {
-                \App\Jobs\SendWelcomeVoucherEmailJob::dispatch(
+            if (! empty($user->email)) {
+                SendWelcomeVoucherEmailJob::dispatch(
                     user: $user,
                     voucher: $voucher,
                     badgeText: 'Đổi Thưởng CinePoints',
@@ -89,7 +90,7 @@ class LoyaltyService
                 );
             }
         } catch (Exception $e) {
-            Log::error('Lỗi dispatch Queue Job đổi thưởng: ' . $e->getMessage());
+            Log::error('Lỗi dispatch Queue Job đổi thưởng: '.$e->getMessage());
         }
 
         return [

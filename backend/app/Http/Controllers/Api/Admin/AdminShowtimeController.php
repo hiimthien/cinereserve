@@ -108,7 +108,7 @@ class AdminShowtimeController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => "Cập nhật suất chiếu thành công!",
+            'message' => 'Cập nhật suất chiếu thành công!',
             'data' => new ShowtimeResource($showtime),
         ]);
     }

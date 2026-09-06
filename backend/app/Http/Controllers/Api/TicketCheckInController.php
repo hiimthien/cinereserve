@@ -24,7 +24,7 @@ class TicketCheckInController extends Controller
         $rawCode = (string) $validated['qr_code'];
         $booking = $this->ticketCheckInService->findBookingForCheckIn($rawCode);
 
-        if (!$booking) {
+        if (! $booking) {
             return response()->json([
                 'success' => false,
                 'status' => 'INVALID',
@@ -50,7 +50,7 @@ class TicketCheckInController extends Controller
     {
         $booking = $this->ticketCheckInService->findBookingForCheckIn($code);
 
-        if (!$booking) {
+        if (! $booking) {
             return response()->json([
                 'success' => false,
                 'message' => 'Không tìm thấy vé trong hệ thống.',

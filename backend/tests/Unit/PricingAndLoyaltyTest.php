@@ -2,9 +2,6 @@
 
 namespace Tests\Unit;
 
-use App\Models\Cinema;
-use App\Models\Movie;
-use App\Models\Room;
 use App\Models\Seat;
 use App\Models\Showtime;
 use App\Models\User;
@@ -22,7 +19,7 @@ class PricingAndLoyaltyTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->pricingService = new PricingService();
+        $this->pricingService = new PricingService;
     }
 
     public function test_dynamic_pricing_happy_wednesday_sets_discounted_prices(): void

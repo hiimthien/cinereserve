@@ -26,4 +26,3 @@ Schedule::command('showtimes:send-reminders')
     ->everyFifteenMinutes()
     ->name('send-showtime-reminders')
     ->withoutOverlapping();
-
