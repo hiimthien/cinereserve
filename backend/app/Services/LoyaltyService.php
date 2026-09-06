@@ -13,8 +13,8 @@ use App\Repositories\Contracts\VoucherRepositoryInterface;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 
 class LoyaltyService
 {
@@ -55,7 +55,7 @@ class LoyaltyService
         $voucherCode = strtoupper($prefix.'-'.substr(md5(uniqid((string) mt_rand(), true)), 0, 6));
 
         // Thực hiện trừ điểm và tạo Voucher trong Atomic Transaction
-        $result = \Illuminate\Support\Facades\DB::transaction(function () use ($user, $reward, $voucherCode) {
+        $result = DB::transaction(function () use ($user, $reward, $voucherCode) {
             $user->points -= $reward->points_required;
             $user->save();
 

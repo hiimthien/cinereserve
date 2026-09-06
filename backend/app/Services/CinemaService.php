@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Http\Resources\CinemaResource;
+use App\Http\Resources\MovieResource;
+use App\Http\Resources\ShowtimeResource;
 use App\Models\Cinema;
 use App\Models\Room;
+use App\Models\Showtime;
 use App\Repositories\Contracts\CinemaRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class CinemaService
 {
@@ -35,14 +40,14 @@ class CinemaService
     {
         $cacheKey = "cinemas:showtimes:cinema_{$cinemaId}:date_{$date}";
 
-        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 60, function () use ($cinemaId, $date) {
+        return Cache::remember($cacheKey, 60, function () use ($cinemaId, $date) {
             $cinema = $this->cinemaRepository->findById($cinemaId, ['rooms']);
 
             if (! $cinema) {
                 abort(404, 'Không tìm thấy rạp chiếu.');
             }
 
-            $showtimes = \App\Models\Showtime::with(['movie', 'room'])
+            $showtimes = Showtime::with(['movie', 'room'])
                 ->where('cinema_id', $cinemaId)
                 ->where('show_date', $date)
                 ->orderBy('start_time')
@@ -57,16 +62,16 @@ class CinemaService
                 $movieId = $st->movie->id;
                 if (! isset($movieGroups[$movieId])) {
                     $movieGroups[$movieId] = [
-                        'movie' => new \App\Http\Resources\MovieResource($st->movie),
+                        'movie' => new MovieResource($st->movie),
                         'showtimes' => [],
                     ];
                 }
 
-                $movieGroups[$movieId]['showtimes'][] = new \App\Http\Resources\ShowtimeResource($st);
+                $movieGroups[$movieId]['showtimes'][] = new ShowtimeResource($st);
             }
 
             return [
-                'cinema' => new \App\Http\Resources\CinemaResource($cinema),
+                'cinema' => new CinemaResource($cinema),
                 'date' => $date,
                 'movies' => array_values($movieGroups),
             ];

@@ -68,7 +68,7 @@ class SeatLockingService
             $lockKeyMap[$seat->id] = $key;
             $keysToFetch[] = $key;
         }
-        $cachedHolds = !empty($keysToFetch) ? Cache::many($keysToFetch) : [];
+        $cachedHolds = ! empty($keysToFetch) ? Cache::many($keysToFetch) : [];
 
         $result = [];
 
