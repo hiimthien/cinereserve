@@ -36,8 +36,11 @@ class VNPayService
         $vnp_OrderType = 'billpayment';
         $vnp_Amount = (int) ($booking->total_amount * 100); // VNPay yêu cầu nhân 100
         $vnp_Locale = 'vn';
-        $vnp_CreateDate = date('YmdHis');
-        $vnp_ExpireDate = date('YmdHis', strtotime('+15 minutes'));
+
+        // VNPay yêu cầu thời gian bắt buộc theo múi giờ Việt Nam (GMT+7)
+        $now = now('Asia/Ho_Chi_Minh');
+        $vnp_CreateDate = $now->format('YmdHis');
+        $vnp_ExpireDate = $now->copy()->addMinutes(15)->format('YmdHis');
 
         $inputData = [
             'vnp_Version' => '2.1.0',
@@ -80,13 +83,20 @@ class VNPayService
      */
     public function processIpn(array $inputData): array
     {
-        $vnp_SecureHash = $inputData['vnp_SecureHash'] ?? '';
-        unset($inputData['vnp_SecureHash'], $inputData['vnp_SecureHashType']);
+        $vnp_SecureHash = (string) ($inputData['vnp_SecureHash'] ?? '');
 
-        ksort($inputData);
+        // Chỉ lấy các trường vnp_ theo chuẩn VNPay v2.1.0
+        $cleanData = [];
+        foreach ($inputData as $key => $value) {
+            if (str_starts_with((string) $key, 'vnp_') && $key !== 'vnp_SecureHash' && $key !== 'vnp_SecureHashType') {
+                $cleanData[(string) $key] = (string) $value;
+            }
+        }
+
+        ksort($cleanData);
         $hashData = '';
         $i = 0;
-        foreach ($inputData as $key => $value) {
+        foreach ($cleanData as $key => $value) {
             if ($i == 1) {
                 $hashData .= '&'.urlencode((string) $key).'='.urlencode((string) $value);
             } else {
